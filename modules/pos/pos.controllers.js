@@ -38,10 +38,31 @@ const createPOSSale = async (req, res) => {
       POSSessionId,
     } = req.body;
 
+    // Validate user authentication
+    if (!req.user || !req.user.id) {
+      logger.error("User not authenticated or missing user ID");
+      return res.status(401).json({
+        message: "User not authenticated",
+      });
+    }
+
     const UserId = req.user.id;
+
+    // Log incoming data for debugging
+    logger.info(
+      `Creating POS sale - Full request body:`,
+      JSON.stringify(req.body, null, 2)
+    );
+    logger.info(`Items received:`, items);
 
     // Validate required fields
     if (!ShopId || !items || items.length === 0 || !total || !paymentMethod) {
+      logger.error(`Validation failed:`, {
+        ShopId,
+        itemsLength: items?.length,
+        total,
+        paymentMethod,
+      });
       return res.status(400).json({
         message: "Missing required fields",
       });
@@ -82,6 +103,14 @@ const createPOSSale = async (req, res) => {
     // Create sale items and update inventory
     const saleItems = [];
     for (const item of items) {
+      // Validate ProductId exists
+      if (!item.ProductId) {
+        logger.error(`Item missing ProductId:`, item);
+        throw new Error(
+          `Item is missing ProductId. Item data: ${JSON.stringify(item)}`
+        );
+      }
+
       const product = await Product.findByPk(item.ProductId);
       if (!product) {
         throw new Error(`Product ${item.ProductId} not found`);
@@ -90,7 +119,7 @@ const createPOSSale = async (req, res) => {
       // Check stock availability
       if (product.productQuantity < item.quantity) {
         throw new Error(
-          `Insufficient stock for ${product.productName}. Available: ${product.productQuantity}, Requested: ${item.quantity}`
+          `Insufficient stock for ${product.name}. Available: ${product.productQuantity}, Requested: ${item.quantity}`
         );
       }
 
@@ -105,15 +134,15 @@ const createPOSSale = async (req, res) => {
         {
           POSSaleId: sale.id,
           ProductId: item.ProductId,
-          productName: product.productName,
-          productSKU: product.productSKU || "",
+          productName: product.name,
+          productSKU: "", // Product model doesn't have SKU field
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           discount: itemDiscount,
           tax: itemTax,
           subtotal: itemSubtotal,
           total: itemTotal,
-          cost: product.productCostPrice || 0,
+          cost: 0, // Cost price not stored in Product model
           notes: item.notes,
         },
         { transaction }
@@ -142,8 +171,8 @@ const createPOSSale = async (req, res) => {
           quantityAfter: product.productQuantity - item.quantity,
           reference: receiptNumber,
           notes: `POS Sale - ${receiptNumber}`,
-          unitCost: product.productCostPrice || 0,
-          totalCost: (product.productCostPrice || 0) * item.quantity,
+          unitCost: 0, // Cost price not stored in Product model
+          totalCost: 0,
         },
         { transaction }
       );
@@ -188,7 +217,8 @@ const createPOSSale = async (req, res) => {
           include: [
             {
               model: Product,
-              attributes: ["id", "productName", "productSKU"],
+              as: "product",
+              attributes: ["id", "name"],
               include: [
                 {
                   model: ProductImage,
@@ -203,7 +233,7 @@ const createPOSSale = async (req, res) => {
         {
           model: User,
           as: "cashier",
-          attributes: ["id", "fullName", "email"],
+          attributes: ["id", "name", "email"],
         },
       ],
     });
@@ -214,7 +244,10 @@ const createPOSSale = async (req, res) => {
       data: completeSale,
     });
   } catch (error) {
-    await transaction.rollback();
+    // Only rollback if transaction hasn't been committed yet
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
     logger.error(`Error creating POS sale: ${error.message}`);
     res.status(500).json({
       message: error.message || "Error creating sale",
@@ -240,7 +273,12 @@ const getPOSSales = async (req, res) => {
 
     if (ShopId) where.ShopId = ShopId;
     if (paymentMethod) where.paymentMethod = paymentMethod;
-    if (status) where.status = status;
+    // Default to COMPLETED status if not specified, to match analytics behavior
+    if (status) {
+      where.status = status;
+    } else {
+      where.status = "COMPLETED";
+    }
     if (POSSessionId) where.POSSessionId = POSSessionId;
 
     if (startDate || endDate) {
@@ -260,14 +298,15 @@ const getPOSSales = async (req, res) => {
           include: [
             {
               model: Product,
-              attributes: ["id", "productName", "productSKU"],
+              as: "product",
+              attributes: ["id", "name"],
             },
           ],
         },
         {
           model: User,
           as: "cashier",
-          attributes: ["id", "fullName"],
+          attributes: ["id", "name"],
         },
       ],
       limit: parseInt(limit),
@@ -374,15 +413,22 @@ const getPOSAnalytics = async (req, res) => {
         };
         break;
       case "week":
-        const weekStart = new Date(now.setDate(now.getDate() - 7));
+      case "this_week":
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay()); // Start of current week (Sunday)
+        weekStart.setHours(0, 0, 0, 0);
         dateFilter = { [Op.gte]: weekStart };
         break;
       case "month":
+      case "this_month":
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        monthStart.setHours(0, 0, 0, 0);
         dateFilter = { [Op.gte]: monthStart };
         break;
       case "year":
+      case "this_year":
         const yearStart = new Date(now.getFullYear(), 0, 1);
+        yearStart.setHours(0, 0, 0, 0);
         dateFilter = { [Op.gte]: yearStart };
         break;
       case "custom":
@@ -415,9 +461,9 @@ const getPOSAnalytics = async (req, res) => {
     const paymentMethods = await POSSale.findAll({
       where,
       attributes: [
-        "paymentMethod",
+        [sequelize.col("paymentMethod"), "method"],
         [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-        [sequelize.fn("SUM", sequelize.col("total")), "amount"],
+        [sequelize.fn("SUM", sequelize.col("total")), "total"],
       ],
       group: ["paymentMethod"],
       raw: true,
@@ -431,6 +477,7 @@ const getPOSAnalytics = async (req, res) => {
       include: [
         {
           model: POSSale,
+          as: "sale",
           where,
           attributes: [],
         },
@@ -443,18 +490,27 @@ const getPOSAnalytics = async (req, res) => {
       attributes: [
         "ProductId",
         "productName",
-        [sequelize.fn("SUM", sequelize.col("quantity")), "quantitySold"],
-        [sequelize.fn("SUM", sequelize.col("total")), "revenue"],
+        [
+          sequelize.fn("SUM", sequelize.col("POSSaleItem.quantity")),
+          "totalQuantity",
+        ],
+        [
+          sequelize.fn("SUM", sequelize.col("POSSaleItem.total")),
+          "totalRevenue",
+        ],
       ],
       include: [
         {
           model: POSSale,
+          as: "sale",
           where,
           attributes: [],
         },
       ],
       group: ["ProductId", "productName"],
-      order: [[sequelize.fn("SUM", sequelize.col("total")), "DESC"]],
+      order: [
+        [sequelize.fn("SUM", sequelize.col("POSSaleItem.total")), "DESC"],
+      ],
       limit: 10,
       raw: true,
     });
@@ -465,12 +521,12 @@ const getPOSAnalytics = async (req, res) => {
       hourlySales = await POSSale.findAll({
         where,
         attributes: [
-          [sequelize.fn("HOUR", sequelize.col("createdAt")), "hour"],
+          [sequelize.literal('EXTRACT(HOUR FROM "createdAt")'), "hour"],
           [sequelize.fn("COUNT", sequelize.col("id")), "transactions"],
           [sequelize.fn("SUM", sequelize.col("total")), "sales"],
         ],
-        group: [sequelize.fn("HOUR", sequelize.col("createdAt"))],
-        order: [[sequelize.fn("HOUR", sequelize.col("createdAt")), "ASC"]],
+        group: [sequelize.literal('EXTRACT(HOUR FROM "createdAt")')],
+        order: [[sequelize.literal('EXTRACT(HOUR FROM "createdAt")'), "ASC"]],
         raw: true,
       });
     }
@@ -478,15 +534,27 @@ const getPOSAnalytics = async (req, res) => {
     res.status(200).json({
       message: "Analytics fetched successfully",
       data: {
-        summary: sales[0] || {
-          totalTransactions: 0,
-          totalSales: 0,
-          avgTransaction: 0,
-        },
-        paymentMethods,
-        itemsSold: itemsSold[0]?.totalItems || 0,
-        topProducts,
-        hourlySales,
+        totalTransactions: parseInt(sales[0]?.totalTransactions || 0),
+        totalSales: parseFloat(sales[0]?.totalSales || 0),
+        totalDiscount: parseFloat(sales[0]?.totalDiscount || 0),
+        totalTax: parseFloat(sales[0]?.totalTax || 0),
+        averageSale: parseFloat(sales[0]?.avgTransaction || 0),
+        totalItemsSold: parseInt(itemsSold[0]?.totalItems || 0),
+        paymentMethods: paymentMethods.map((pm) => ({
+          method: pm.method,
+          count: parseInt(pm.count),
+          total: parseFloat(pm.total),
+        })),
+        topProducts: topProducts.map((tp) => ({
+          productName: tp.productName,
+          totalQuantity: parseInt(tp.totalQuantity),
+          totalRevenue: parseFloat(tp.totalRevenue),
+        })),
+        hourlySales: hourlySales.map((hs) => ({
+          hour: parseInt(hs.hour),
+          transactions: parseInt(hs.transactions),
+          sales: parseFloat(hs.sales),
+        })),
       },
     });
   } catch (error) {

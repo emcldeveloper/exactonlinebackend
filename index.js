@@ -41,6 +41,7 @@ const SubCategoriesRoutes = require("./modules/subCategories/subCategories.route
 const OrderedProductsRoutes = require("./modules/orderedProducts/orderedProducts.routes");
 const InventoryRoutes = require("./modules/inventory/inventory.routes");
 const POSRoutes = require("./modules/pos/pos.routes");
+const ShopUsersRoutes = require("./modules/shopUsers/shopUsers.routes");
 const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("./swagger-output.json");
 const {
@@ -131,6 +132,7 @@ app.use("/banners", bannersTag, BannerRoutes);
 app.use("/ordered-products", orderedProductsTag, OrderedProductsRoutes);
 app.use("/inventory", InventoryRoutes);
 app.use("/pos", POSRoutes);
+app.use("/", ShopUsersRoutes); // Shop users routes (includes /shops/:shopId/users and /user-invitations)
 app.use(
   "/shops-subscriptions",
   shopsSubscriptionsTag,
@@ -185,7 +187,7 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(5000, async () => {
+server.listen(process.env.PORT || 5000, async () => {
   // Initialize Redis connection
   try {
     await redisClient.connect();
@@ -196,6 +198,6 @@ server.listen(5000, async () => {
     });
   }
 
-  logger.info("Server is started at port 5000");
-  console.log("Server started at port 5000");
+  logger.info(`Server is started at port ${process.env.PORT || 5000}`);
+  console.log(`Server started at port ${process.env.PORT || 5000}`);
 });

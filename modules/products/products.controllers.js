@@ -12,6 +12,8 @@ const {
   Order,
   Shop,
   CategoryProductSpecification,
+  InventorySettings,
+  InventoryTransaction,
 } = require("../../models");
 const { errorResponse, successResponse } = require("../../utils/responses");
 const { getUrl } = require("../../utils/get_url");
@@ -25,35 +27,42 @@ const childLogger = logger.child({ module: "Products Module" });
 // Helper function to add specification filters to query
 const addSpecificationFilters = (filter, query) => {
   const specificationFilters = {};
-  Object.keys(query).forEach(key => {
-    if (key.startsWith('spec_')) {
-      const specLabel = key.substring(5).replace(/_/g, ' '); // Remove 'spec_' prefix and convert underscores to spaces
+  Object.keys(query).forEach((key) => {
+    if (key.startsWith("spec_")) {
+      const specLabel = key.substring(5).replace(/_/g, " "); // Remove 'spec_' prefix and convert underscores to spaces
       const specValue = query[key];
-      if (specValue && specValue.toLowerCase() !== 'all') {
+      if (specValue && specValue.toLowerCase() !== "all") {
         specificationFilters[specLabel] = specValue;
       }
     }
   });
-  
+
   // Add JSON-based specification filters to the where clause
-  Object.keys(specificationFilters).forEach(specLabel => {
+  Object.keys(specificationFilters).forEach((specLabel) => {
     const specValue = specificationFilters[specLabel];
     // Use PostgreSQL JSON operators for filtering
-    if (specValue === 'true' || specValue === 'false') {
+    if (specValue === "true" || specValue === "false") {
       // Boolean values
       filter[Op.and] = filter[Op.and] || [];
       filter[Op.and].push(
         Sequelize.where(
-          Sequelize.fn('CAST', Sequelize.literal(`"specifications"->>'${specLabel}' AS BOOLEAN`)),
-          specValue === 'true'
+          Sequelize.fn(
+            "CAST",
+            Sequelize.literal(`"specifications"->>'${specLabel}' AS BOOLEAN`)
+          ),
+          specValue === "true"
         )
       );
-    } else if (!isNaN(specValue) && specValue !== '') {
+    } else if (!isNaN(specValue) && specValue !== "") {
       // Numeric values
       filter[Op.and] = filter[Op.and] || [];
       filter[Op.and].push(
         Sequelize.where(
-          Sequelize.fn('CAST', Sequelize.literal(`"specifications"->>'${specLabel}'`), 'FLOAT'),
+          Sequelize.fn(
+            "CAST",
+            Sequelize.literal(`"specifications"->>'${specLabel}'`),
+            "FLOAT"
+          ),
           parseFloat(specValue)
         )
       );
@@ -62,14 +71,17 @@ const addSpecificationFilters = (filter, query) => {
       filter[Op.and] = filter[Op.and] || [];
       filter[Op.and].push(
         Sequelize.where(
-          Sequelize.fn('LOWER', Sequelize.literal(`"specifications"->>'${specLabel}'`)),
-          'LIKE',
+          Sequelize.fn(
+            "LOWER",
+            Sequelize.literal(`"specifications"->>'${specLabel}'`)
+          ),
+          "LIKE",
           `%${specValue.toLowerCase()}%`
         )
       );
     }
   });
-  
+
   return filter;
 };
 
@@ -132,6 +144,8 @@ const addProduct = async (req, res) => {
     const {
       name,
       sellingPrice,
+      productPrice,
+      buyingPrice,
       priceIncludeDelivery,
       deliveryScope,
       productLink,
@@ -140,13 +154,34 @@ const addProduct = async (req, res) => {
       specifications,
       description,
       CategoryId,
-      // SubcategoryId,
+      SubcategoryId,
       ShopId,
+      // Inventory fields
+      productQuantity,
+      initialStock,
+      trackInventory,
+      lowStockAlert,
+      reorderLevel,
+      maxStockLevel,
+      allowBackorder,
+      enableLowStockAlert,
+      stockValuationMethod,
+      productSKU,
+      location,
+      supplier,
+      UserId,
     } = req.body;
-  console.log("Adding product:", req.body);
+
+    console.log("Adding product:", req.body);
+
+    // Use productPrice if sellingPrice not provided (for backward compatibility)
+    const finalSellingPrice = sellingPrice || productPrice;
+    const finalQuantity = initialStock || productQuantity || 0;
+
+    // Create product
     const response = await Product.create({
       name,
-      sellingPrice: `${sellingPrice}`.replace(",", ""),
+      sellingPrice: `${finalSellingPrice}`.replace(",", ""),
       priceIncludeDelivery,
       deliveryScope,
       productLink,
@@ -155,10 +190,61 @@ const addProduct = async (req, res) => {
       specifications,
       description,
       CategoryId,
-      // SubcategoryId,
+      SubcategoryId,
       ShopId,
+      productQuantity: finalQuantity,
     });
-     console.log("product added",response)
+
+    console.log("Product added:", response.id);
+
+    // Create inventory settings if tracking inventory
+    if (trackInventory === "true" || trackInventory === true) {
+      await InventorySettings.create({
+        ProductId: response.id,
+        ShopId,
+        trackInventory: true,
+        lowStockThreshold: parseInt(lowStockAlert) || 10,
+        reorderLevel: parseInt(reorderLevel) || 15,
+        maxStockLevel: parseInt(maxStockLevel) || 100,
+        allowBackorder: allowBackorder === "true" || allowBackorder === true,
+        enableLowStockAlert:
+          enableLowStockAlert === "true" || enableLowStockAlert === true,
+        stockValuationMethod: stockValuationMethod || "FIFO",
+        sku: productSKU,
+        location,
+        supplier,
+        buyingPrice: buyingPrice
+          ? parseFloat(`${buyingPrice}`.replace(",", ""))
+          : null,
+      });
+
+      console.log("Inventory settings created");
+
+      // Create initial inventory transaction if quantity > 0
+      if (finalQuantity > 0) {
+        await InventoryTransaction.create({
+          ProductId: response.id,
+          ShopId,
+          UserId: UserId || null,
+          transactionType: "RESTOCK",
+          quantityChange: parseInt(finalQuantity),
+          quantityBefore: 0,
+          quantityAfter: parseInt(finalQuantity),
+          reference: "Initial Stock",
+          notes: "Initial inventory stock when product was created",
+          unitCost: buyingPrice
+            ? parseFloat(`${buyingPrice}`.replace(",", ""))
+            : null,
+          totalCost: buyingPrice
+            ? parseFloat(`${buyingPrice}`.replace(",", "")) *
+              parseInt(finalQuantity)
+            : null,
+        });
+
+        console.log("Initial inventory transaction created");
+      }
+    }
+
     // Invalidate relevant caches
     await invalidateProductCaches(response.id, ShopId, CategoryId);
 
@@ -250,18 +336,15 @@ const getProducts = async (req, res) => {
         [Op.like]: `%${req.keyword ?? ""}%`,
       },
     };
-    
+
     // Support filtering by CategoryId or SubcategoryId
     if (category && category.toLowerCase() !== "all") {
-      filter[Op.or] = [
-        { CategoryId: category },
-        { SubcategoryId: category },
-      ];
+      filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
     }
-    
+
     // Add specification filters
     filter = addSpecificationFilters(filter, req.query);
-    
+
     let includes = [
       ProductImage,
       {
@@ -285,7 +368,7 @@ const getProducts = async (req, res) => {
       order: [["createdAt", "DESC"]],
       include: includes,
       distinct: true, // This ensures correct counting with JOINs
-      col: 'id', // Count distinct products, not joined rows
+      col: "id", // Count distinct products, not joined rows
     });
 
     childLogger.info("Products fetched successfully", {
@@ -324,7 +407,7 @@ const getNewArrivalProducts = async (req, res) => {
         required: false,
       });
     }
-    
+
     let filter = {
       isHidden: false,
       name: {
@@ -333,15 +416,12 @@ const getNewArrivalProducts = async (req, res) => {
     };
     // Support filtering by CategoryId or SubcategoryId
     if (category && category.toLowerCase() !== "all") {
-      filter[Op.or] = [
-        { CategoryId: category },
-        { SubcategoryId: category },
-      ];
+      filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
     }
-    
+
     // Add specification filters
     filter = addSpecificationFilters(filter, req.query);
-    
+
     const response = await Product.findAndCountAll({
       limit: req.limit,
       offset: req.offset,
@@ -349,17 +429,15 @@ const getNewArrivalProducts = async (req, res) => {
       order: [["createdAt", "DESC"]],
       include: includes,
       distinct: true,
-      col: 'id',
+      col: "id",
     });
 
-  
     successResponse(res, {
       count: response.count,
       page: req.page,
       ...response,
     });
   } catch (error) {
-  
     errorResponse(res, error);
   }
 };
@@ -369,8 +447,7 @@ const getProductSearch = async (req, res) => {
   try {
     const { keyword } = req.params;
     const { category } = req.query;
-   
-    
+
     let filter = {
       isHidden: false,
       name: {
@@ -379,26 +456,22 @@ const getProductSearch = async (req, res) => {
     };
     // Support filtering by CategoryId or SubcategoryId
     if (category && category.toLowerCase() !== "all") {
-      filter[Op.or] = [
-        { CategoryId: category },
-        { SubcategoryId: category },
-      ];
+      filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
     }
-    
+
     // Add specification filters
     filter = addSpecificationFilters(filter, req.query);
-    
+
     const response = await Product.findAll({
       where: filter,
       include: [
-         ProductImage,
-      {
-        model: Shop,
-        required: true,
-      },
-      // ProductStat,
-      ProductReview,
-
+        ProductImage,
+        {
+          model: Shop,
+          required: true,
+        },
+        // ProductStat,
+        ProductReview,
       ],
     });
 
@@ -439,7 +512,7 @@ const getProductsForYou = async (req, res) => {
         required: false,
       });
     }
-    
+
     let filter = {
       isHidden: false,
       name: {
@@ -448,22 +521,19 @@ const getProductsForYou = async (req, res) => {
     };
     // Support filtering by CategoryId or SubcategoryId
     if (category && category.toLowerCase() !== "all") {
-      filter[Op.or] = [
-        { CategoryId: category },
-        { SubcategoryId: category },
-      ];
+      filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
     }
-    
+
     // Add specification filters
     filter = addSpecificationFilters(filter, req.query);
-    
+
     const response = await Product.findAndCountAll({
       limit: req.limit,
       offset: req.offset,
       where: filter,
       include: includes,
       distinct: true,
-      col: 'id',
+      col: "id",
     });
 
     successResponse(res, {
@@ -496,24 +566,21 @@ const getShopProducts = async (req, res) => {
         required: false,
       });
     }
-    
+
     let filter = {
       name: {
-        [Op.like]: `%${req.keyword}%`,
+        [Op.iLike]: `%${req.keyword}%`,
       },
       ShopId: id,
     };
     // Support filtering by CategoryId or SubcategoryId
     if (category && category.toLowerCase() !== "all") {
-      filter[Op.or] = [
-        { CategoryId: category },
-        { SubcategoryId: category },
-      ];
+      filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
     }
-    
+
     // Add specification filters
     filter = addSpecificationFilters(filter, req.query);
-    
+
     const response = await Product.findAndCountAll({
       limit: req.limit,
       offset: req.offset,
@@ -521,7 +588,7 @@ const getShopProducts = async (req, res) => {
       where: filter,
       include: includes,
       distinct: true,
-      col: 'id',
+      col: "id",
     });
 
     childLogger.info("Shop products fetched successfully", {
@@ -581,7 +648,7 @@ const getRelatedProducts = async (req, res) => {
         required: false,
       });
     }
-    
+
     let filter = {
       isHidden: false,
       name: {
@@ -589,28 +656,25 @@ const getRelatedProducts = async (req, res) => {
       },
       id: { [Op.ne]: id },
     };
-    
+
     // If category filter is provided, use it; otherwise use the product's CategoryId for related products
     if (category && category.toLowerCase() !== "all") {
-      filter[Op.or] = [
-        { CategoryId: category },
-        { SubcategoryId: category },
-      ];
+      filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
     } else {
       // Default behavior: find products with same CategoryId
       filter.CategoryId = product.CategoryId;
     }
-    
+
     // Add specification filters
     filter = addSpecificationFilters(filter, req.query);
-    
+
     const response = await Product.findAndCountAll({
       limit: req.limit,
       offset: req.offset,
       where: filter,
       include: includes,
       distinct: true,
-      col: 'id',
+      col: "id",
     });
 
     childLogger.info("Related products fetched successfully", {
@@ -700,7 +764,7 @@ const getProduct = async (req, res) => {
     };
     let product = await Product.findOne(options);
     //inside product there is specifications JSON ... reorder specifications to be viceversa (bottom, up)
-  
+
     console.log("product", product);
     if (!product) {
       return res.status(404).send({
