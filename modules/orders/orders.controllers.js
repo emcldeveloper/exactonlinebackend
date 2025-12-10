@@ -6,7 +6,10 @@ const {
   Order,
   Product,
   ProductImage,
-  Notification
+  Notification,
+  InventoryTransaction,
+  POSSale,
+  POSSaleItem,
 } = require("../../models");
 const { errorResponse, successResponse } = require("../../utils/responses");
 const { getUrl } = require("../../utils/get_url");
@@ -247,7 +250,7 @@ const updateOrder = async (req, res) => {
         userId: order.User.id,
       });
     }
-   
+
     if (payload.status == "CANCELED") {
       await sendFCMNotification({
         title: `Order cancellation`,
@@ -278,28 +281,115 @@ const updateOrder = async (req, res) => {
       await sendSMS(
         order.User.phone,
         `Dear ${order.User.name},\nYour order from ${order.Shop.name} has been marked as delivered. Please use the OTP code ${code} to confirm delivery of your order.\n\nThank you.`
-      ); 
+      );
     }
     if (payload.status == "CLOSED") {
       //confirm otp
       if (payload.otp !== order.otp) {
-        res.status(401).send({status:false, message: "Invalid OTP" });
-      }else{
-        
-       await sendFCMNotification({
-        title: `Customer confirmed delivery`,
-        body: `Customer has just confirmed that they got their order`,
-        token: order.Shop.User.token,
-        data: { type: "order", orderId: String(order.id), to: "shop" },
-      });
-      await Notification.create({
-        title: "Order closed",
-        message: `Customer has just confirmed that they got their order.`,
-        userId: order.Shop.User.id,
-      });
-      await order.update({ otp: null }); //clear otp
+        res.status(401).send({ status: false, message: "Invalid OTP" });
+      } else {
+        await sendFCMNotification({
+          title: `Customer confirmed delivery`,
+          body: `Customer has just confirmed that they got their order`,
+          token: order.Shop.User.token,
+          data: { type: "order", orderId: String(order.id), to: "shop" },
+        });
+        await Notification.create({
+          title: "Order closed",
+          message: `Customer has just confirmed that they got their order.`,
+          userId: order.Shop.User.id,
+        });
+        await order.update({ otp: null }); //clear otp
+
+        // Create POS sale record
+        try {
+          const receiptNumber = `ORD-${Date.now()}`;
+          const orderedProducts = order.OrderedProducts;
+
+          // Calculate totals
+          const subtotal = orderedProducts.reduce(
+            (sum, item) =>
+              sum + parseFloat(item.Product.sellingPrice) * item.quantity,
+            0
+          );
+          const total = parseFloat(order.totalPrice);
+          const discount = subtotal - total;
+
+          // Create POS Sale
+          const posSale = await POSSale.create({
+            receiptNumber,
+            ShopId: order.ShopId,
+            UserId: order.Shop.UserId, // Shop owner as cashier
+            subtotal,
+            discount,
+            tax: 0,
+            total,
+            paymentMethod: "CASH", // Default for online orders
+            paymentStatus: "PAID",
+            amountPaid: total,
+            amountChange: 0,
+            customerId: order.UserId,
+            customerName: order.User.name,
+            customerPhone: order.User.phone,
+            notes: `Online order #${order.id}`,
+            status: "COMPLETED",
+          });
+
+          // Create POS Sale Items and Inventory Transactions
+          for (const orderedProduct of orderedProducts) {
+            const product = orderedProduct.Product;
+            const quantity = orderedProduct.quantity;
+            const unitPrice = parseFloat(product.sellingPrice);
+            const itemTotal = unitPrice * quantity;
+
+            // Create POS Sale Item
+            await POSSaleItem.create({
+              POSSaleId: posSale.id,
+              ProductId: product.id,
+              productName: product.name,
+              productSKU: product.productSKU,
+              quantity,
+              unitPrice,
+              discount: 0,
+              tax: 0,
+              subtotal: itemTotal,
+              total: itemTotal,
+              cost: parseFloat(product.buyingPrice || 0),
+            });
+
+            // Create Inventory Transaction
+            const currentQuantity = product.productQuantity || 0;
+            const newQuantity = currentQuantity - quantity;
+
+            await InventoryTransaction.create({
+              ProductId: product.id,
+              ShopId: order.ShopId,
+              UserId: order.UserId,
+              transactionType: "SALE",
+              quantityChange: -quantity,
+              quantityBefore: currentQuantity,
+              quantityAfter: newQuantity,
+              reference: `Order #${order.id}`,
+              notes: `Online order completed`,
+              unitCost: parseFloat(product.buyingPrice || 0),
+              totalCost: parseFloat(product.buyingPrice || 0) * quantity,
+            });
+
+            // Update product quantity
+            await product.update({ productQuantity: newQuantity });
+          }
+
+          console.log(
+            `Created POS sale ${receiptNumber} for order ${order.id}`
+          );
+        } catch (error) {
+          console.error(
+            "Error creating POS sale and inventory records:",
+            error
+          );
+          // Don't fail the order closure if POS/inventory recording fails
+        }
       }
-      
     }
     const response = await order.update(payload);
     successResponse(res, response);
