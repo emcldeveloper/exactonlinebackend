@@ -320,6 +320,104 @@ const getInventoryBatches = async (req, res) => {
 };
 
 /**
+ * Get product by batch number
+ */
+const getProductByBatchNumber = async (req, res) => {
+  const requestId = uuidv4();
+  try {
+    const { batchNumber } = req.params;
+    const UserId = req.user.id;
+
+    childLogger.info("Fetching product by batch number", {
+      requestId,
+      batchNumber,
+      UserId,
+    });
+
+    // Find the batch
+    const batch = await InventoryBatch.findOne({
+      where: { batchNumber },
+      include: [
+        {
+          model: Product,
+          as: "product",
+          attributes: [
+            "id",
+            "name",
+            "sellingPrice",
+            "buyingPrice",
+            "productQuantity",
+            "productSKU",
+            "ShopId",
+          ],
+          include: [
+            {
+              model: ProductImage,
+              attributes: ["id", "image"],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!batch) {
+      childLogger.warn("Batch not found", { requestId, batchNumber });
+      return errorResponse(res, "Batch not found", 404);
+    }
+
+    // Verify user has access to this product's shop
+    const product = batch.product;
+    const shop = await Shop.findOne({
+      where: {
+        id: product.ShopId,
+        UserId,
+      },
+    });
+
+    if (!shop) {
+      childLogger.warn("Access denied to product", {
+        requestId,
+        ShopId: product.ShopId,
+        UserId,
+      });
+      return errorResponse(res, "Access denied to this product", 403);
+    }
+
+    childLogger.info("Product found by batch number", {
+      requestId,
+      ProductId: product.id,
+    });
+
+    return successResponse(res, {
+      batch: {
+        id: batch.id,
+        batchNumber: batch.batchNumber,
+        quantity: batch.quantity,
+        expiryDate: batch.expiryDate,
+        costPerUnit: batch.costPerUnit,
+        location: batch.location,
+      },
+      product: {
+        id: product.id,
+        name: product.name,
+        sellingPrice: product.sellingPrice,
+        buyingPrice: product.buyingPrice,
+        productQuantity: product.productQuantity,
+        productSKU: product.productSKU,
+        ProductImages: product.ProductImages,
+      },
+    });
+  } catch (error) {
+    childLogger.error("Failed to fetch product by batch number", {
+      requestId,
+      error: error.message,
+      stack: error.stack,
+    });
+    return errorResponse(res, error.message);
+  }
+};
+
+/**
  * Get inventory alerts
  */
 const getInventoryAlerts = async (req, res) => {
@@ -776,6 +874,7 @@ module.exports = {
   getInventoryTransactions,
   addInventoryBatch,
   getInventoryBatches,
+  getProductByBatchNumber,
   getInventoryAlerts,
   updateInventoryAlert,
   getInventorySettings,

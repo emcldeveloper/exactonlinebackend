@@ -5,6 +5,7 @@ const {
   getInventoryTransactions,
   addInventoryBatch,
   getInventoryBatches,
+  getProductByBatchNumber,
   getInventoryAlerts,
   updateInventoryAlert,
   getInventorySettings,
@@ -20,6 +21,7 @@ router.get("/transactions", getInventoryTransactions);
 // Inventory Batches
 router.post("/batches", addInventoryBatch);
 router.get("/batches", getInventoryBatches);
+router.get("/batch/:batchNumber/product", getProductByBatchNumber);
 
 // Inventory Alerts
 router.get("/alerts", getInventoryAlerts);
