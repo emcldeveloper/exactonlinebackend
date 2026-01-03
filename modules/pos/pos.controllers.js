@@ -228,7 +228,6 @@ const createPOSSale = async (req, res) => {
                 },
               ],
             },
-            
           ],
         },
         {
