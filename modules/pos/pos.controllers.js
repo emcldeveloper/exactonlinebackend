@@ -300,6 +300,11 @@ const getPOSSales = async (req, res) => {
               model: Product,
               as: "product",
               attributes: ["id", "name"],
+              include: [
+                {
+                  model: Shop
+                },
+              ],
             },
           ],
         },
