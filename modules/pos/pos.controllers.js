@@ -238,6 +238,7 @@ const createPOSSale = async (req, res) => {
         },
         {
           model: Shop,
+          as: "shop",
         },
       ],
     });
@@ -314,6 +315,7 @@ const getPOSSales = async (req, res) => {
         },
         {
           model: Shop,
+          as: "shop",
         },
       ],
       limit: parseInt(limit),
@@ -376,6 +378,7 @@ const getPOSSale = async (req, res) => {
         },
         {
           model: Shop,
+          as: "shop",
           attributes: ["id", "shopName", "location", "phone"],
         },
       ],
