@@ -326,18 +326,15 @@ const getProductByBatchNumber = async (req, res) => {
   const requestId = uuidv4();
   try {
     const { batchNumber } = req.params;
-    const UserId = req.user?.id;
 
     console.log("===== STEP 1: Request received =====");
     console.log("Batch number from params:", batchNumber);
-    console.log("User ID:", UserId);
     console.log("Full req.params:", JSON.stringify(req.params));
     console.log("Full req.user:", JSON.stringify(req.user));
 
     childLogger.info("Fetching product by batch number", {
       requestId,
       batchNumber,
-      UserId,
     });
 
     console.log("===== STEP 2: Querying database for batch =====");
