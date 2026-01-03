@@ -415,7 +415,7 @@ const getProductByBatchNumber = async (req, res) => {
           },
         ],
       });
-      
+
       console.log("Product fetched directly:", !!product);
       if (product) {
         console.log("Product ID:", product.id);
@@ -439,7 +439,7 @@ const getProductByBatchNumber = async (req, res) => {
     console.log("===== STEP 7: Verifying shop access =====");
     console.log("Product ShopId:", product.ShopId);
     console.log("User ID:", UserId);
-    
+
     // Verify user has access to this product's shop
     const shop = await Shop.findOne({
       where: {
@@ -490,17 +490,20 @@ const getProductByBatchNumber = async (req, res) => {
         ProductImages: product.ProductImages,
       },
     };
-    
+
     console.log("===== STEP 10: Response data prepared =====");
     console.log("Response:", JSON.stringify(responseData));
-    
+
     return successResponse(res, responseData);
   } catch (error) {
     console.log("===== ERROR: Exception caught =====");
     console.log("Error message:", error.message);
     console.log("Error stack:", error.stack);
-    console.log("Full error:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
-    
+    console.log(
+      "Full error:",
+      JSON.stringify(error, Object.getOwnPropertyNames(error))
+    );
+
     childLogger.error("Failed to fetch product by batch number", {
       requestId,
       error: error.message,
