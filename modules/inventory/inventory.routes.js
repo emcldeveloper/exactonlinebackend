@@ -13,6 +13,7 @@ const {
   getInventoryStats,
   bulkUpdateInventory,
 } = require("./inventory.controllers");
+const { validateJWT } = require("../../utils/validateJWT");
 
 // Inventory Transactions
 router.post("/transactions", addInventoryTransaction);
@@ -21,7 +22,7 @@ router.get("/transactions", getInventoryTransactions);
 // Inventory Batches
 router.post("/batches", addInventoryBatch);
 router.get("/batches", getInventoryBatches);
-router.get("/batch/:batchNumber/product", getProductByBatchNumber);
+router.get("/batch/:batchNumber/product", validateJWT, getProductByBatchNumber);
 
 // Inventory Alerts
 router.get("/alerts", getInventoryAlerts);
