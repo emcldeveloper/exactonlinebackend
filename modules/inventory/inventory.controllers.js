@@ -340,7 +340,7 @@ const getProductByBatchNumber = async (req, res) => {
       include: [
         {
           model: Product,
-          as: "product",
+          as: "product", // Use the alias defined in the model association
           attributes: [
             "id",
             "name",
@@ -365,8 +365,49 @@ const getProductByBatchNumber = async (req, res) => {
       return errorResponse(res, "Batch not found", 404);
     }
 
+    // Debug logging to see what we got
+    childLogger.info("Batch found", {
+      requestId,
+      batchId: batch.id,
+      hasProduct: !!batch.product,
+      productId: batch.ProductId,
+      batchData: JSON.stringify(batch.toJSON()),
+    });
+
+    // Get the product from the association, or fetch it directly if association failed
+    let product = batch.product;
+
+    if (!product) {
+      childLogger.warn(
+        "Product not loaded via association, fetching directly",
+        {
+          requestId,
+          productId: batch.ProductId,
+        }
+      );
+
+      // Fetch product directly
+      product = await Product.findByPk(batch.ProductId, {
+        include: [
+          {
+            model: ProductImage,
+            attributes: ["id", "image"],
+          },
+        ],
+      });
+    }
+
+    if (!product) {
+      childLogger.error("Product not found for batch", {
+        requestId,
+        batchNumber,
+        batchId: batch.id,
+        productId: batch.ProductId,
+      });
+      return errorResponse(res, "Product not found for this batch", 404);
+    }
+
     // Verify user has access to this product's shop
-    const product = batch.product;
     const shop = await Shop.findOne({
       where: {
         id: product.ShopId,
