@@ -348,19 +348,9 @@ const getProductByBatchNumber = async (req, res) => {
         {
           model: Product,
           as: "product", // Use the alias defined in the model association
-          attributes: [
-            "id",
-            "name",
-            "sellingPrice",
-            "buyingPrice",
-            "productQuantity",
-            "productSKU",
-            "ShopId",
-          ],
           include: [
             {
               model: ProductImage,
-              attributes: ["id", "image"],
             },
           ],
         },
@@ -484,7 +474,6 @@ const getProductByBatchNumber = async (req, res) => {
         id: product.id,
         name: product.name,
         sellingPrice: product.sellingPrice,
-        buyingPrice: product.buyingPrice,
         productQuantity: product.productQuantity,
         productSKU: product.productSKU,
         ProductImages: product.ProductImages,
