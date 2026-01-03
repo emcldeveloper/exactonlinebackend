@@ -326,7 +326,13 @@ const getProductByBatchNumber = async (req, res) => {
   const requestId = uuidv4();
   try {
     const { batchNumber } = req.params;
-    const UserId = req.user.id;
+    const UserId = req.user?.id;
+
+    console.log("===== STEP 1: Request received =====");
+    console.log("Batch number from params:", batchNumber);
+    console.log("User ID:", UserId);
+    console.log("Full req.params:", JSON.stringify(req.params));
+    console.log("Full req.user:", JSON.stringify(req.user));
 
     childLogger.info("Fetching product by batch number", {
       requestId,
@@ -334,6 +340,7 @@ const getProductByBatchNumber = async (req, res) => {
       UserId,
     });
 
+    console.log("===== STEP 2: Querying database for batch =====");
     // Find the batch
     const batch = await InventoryBatch.findOne({
       where: { batchNumber },
@@ -360,7 +367,17 @@ const getProductByBatchNumber = async (req, res) => {
       ],
     });
 
+    console.log("===== STEP 3: Batch query result =====");
+    console.log("Batch found:", !!batch);
+    if (batch) {
+      console.log("Batch ID:", batch.id);
+      console.log("Batch ProductId:", batch.ProductId);
+      console.log("Batch product (association):", !!batch.product);
+      console.log("Full batch object:", JSON.stringify(batch.toJSON()));
+    }
+
     if (!batch) {
+      console.log("===== ERROR: Batch not found =====");
       childLogger.warn("Batch not found", { requestId, batchNumber });
       return errorResponse(res, "Batch not found", 404);
     }
@@ -374,10 +391,13 @@ const getProductByBatchNumber = async (req, res) => {
       batchData: JSON.stringify(batch.toJSON()),
     });
 
+    console.log("===== STEP 4: Checking product association =====");
     // Get the product from the association, or fetch it directly if association failed
     let product = batch.product;
+    console.log("Product from association:", !!product);
 
     if (!product) {
+      console.log("===== STEP 5: Fetching product directly =====");
       childLogger.warn(
         "Product not loaded via association, fetching directly",
         {
@@ -395,9 +415,18 @@ const getProductByBatchNumber = async (req, res) => {
           },
         ],
       });
+      
+      console.log("Product fetched directly:", !!product);
+      if (product) {
+        console.log("Product ID:", product.id);
+        console.log("Product ShopId:", product.ShopId);
+        console.log("Full product:", JSON.stringify(product.toJSON()));
+      }
     }
 
+    console.log("===== STEP 6: Validating product exists =====");
     if (!product) {
+      console.log("===== ERROR: Product not found =====");
       childLogger.error("Product not found for batch", {
         requestId,
         batchNumber,
@@ -407,6 +436,10 @@ const getProductByBatchNumber = async (req, res) => {
       return errorResponse(res, "Product not found for this batch", 404);
     }
 
+    console.log("===== STEP 7: Verifying shop access =====");
+    console.log("Product ShopId:", product.ShopId);
+    console.log("User ID:", UserId);
+    
     // Verify user has access to this product's shop
     const shop = await Shop.findOne({
       where: {
@@ -415,7 +448,15 @@ const getProductByBatchNumber = async (req, res) => {
       },
     });
 
+    console.log("===== STEP 8: Shop query result =====");
+    console.log("Shop found:", !!shop);
+    if (shop) {
+      console.log("Shop ID:", shop.id);
+      console.log("Shop name:", shop.name);
+    }
+
     if (!shop) {
+      console.log("===== ERROR: Access denied =====");
       childLogger.warn("Access denied to product", {
         requestId,
         ShopId: product.ShopId,
@@ -424,12 +465,13 @@ const getProductByBatchNumber = async (req, res) => {
       return errorResponse(res, "Access denied to this product", 403);
     }
 
+    console.log("===== STEP 9: Preparing response =====");
     childLogger.info("Product found by batch number", {
       requestId,
       ProductId: product.id,
     });
 
-    return successResponse(res, {
+    const responseData = {
       batch: {
         id: batch.id,
         batchNumber: batch.batchNumber,
@@ -447,8 +489,18 @@ const getProductByBatchNumber = async (req, res) => {
         productSKU: product.productSKU,
         ProductImages: product.ProductImages,
       },
-    });
+    };
+    
+    console.log("===== STEP 10: Response data prepared =====");
+    console.log("Response:", JSON.stringify(responseData));
+    
+    return successResponse(res, responseData);
   } catch (error) {
+    console.log("===== ERROR: Exception caught =====");
+    console.log("Error message:", error.message);
+    console.log("Error stack:", error.stack);
+    console.log("Full error:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    
     childLogger.error("Failed to fetch product by batch number", {
       requestId,
       error: error.message,
