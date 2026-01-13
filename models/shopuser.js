@@ -7,21 +7,9 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
       },
-      name: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      phone: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      email: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
       status: {
         type: DataTypes.ENUM("pending", "active", "suspended"),
-        defaultValue: "pending",
+        defaultValue: "active",
       },
       hasPOSAccess: {
         type: DataTypes.BOOLEAN,
@@ -49,6 +37,10 @@ module.exports = (sequelize, DataTypes) => {
   ShopUser.associate = (models) => {
     ShopUser.belongsTo(models.Shop, {
       foreignKey: "ShopId",
+      onDelete: "CASCADE",
+    });
+    ShopUser.belongsTo(models.User, {
+      foreignKey: "UserId",
       onDelete: "CASCADE",
     });
   };

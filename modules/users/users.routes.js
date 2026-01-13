@@ -11,6 +11,7 @@ const {
   sendVerificationCode,
   login,
   addAdmin,
+  searchUsersByPhone,
 } = require("./users.controllers");
 const { getPagination } = require("../../utils/getPagination");
 const upload = require("../../utils/upload");
@@ -23,6 +24,7 @@ router.post("/auth/send-code", sendVerificationCode);
 router.post("/auth/verify-code", verifyCode);
 router.post("/auth/login", login);
 router.get("/", validateJWT, getPagination, getUsers);
+router.get("/search", validateJWT, searchUsersByPhone);
 router.get("/me", validateJWT, getMyInfo);
 router.get("/:id", validateJWT, getUserInfo);
 router.patch("/:id", upload.single("file"), validateJWT, updateUser);

@@ -98,13 +98,7 @@ const getUserShops = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // First, get the user's phone number
-    const user = await User.findByPk(id);
-    if (!user) {
-      return errorResponse(res, { message: "User not found" }, 404);
-    }
-
-    console.log("Getting shops for user:", { id, phone: user.phone });
+    console.log("Getting shops for user:", { id });
 
     // Get shops where user is the owner
     const ownedShops = await Shop.findAll({
@@ -130,7 +124,7 @@ const getUserShops = async (req, res) => {
         {
           model: ShopUser,
           where: {
-            phone: user.phone,
+            UserId: id,
             status: "active",
           },
           required: true,

@@ -196,10 +196,9 @@ const sendVerificationCode = async (req, res) => {
     childLogger.info("Checking if user exists", { requestId, phone });
     const user = await checkIfUserExists(phone);
     if (user) {
-    
       let code = randomNumber();
 
-      if(user.phone == "0627707434"){
+      if (user.phone == "0627707434") {
         code = 12345;
       }
       childLogger.info("Generated verification code", {
@@ -218,7 +217,7 @@ const sendVerificationCode = async (req, res) => {
         requestId,
         userId: user.id,
       });
-      console.log(code)
+      console.log(code);
       await user.update({ passcode: code });
 
       childLogger.info("Verification code sent successfully", {
@@ -252,8 +251,6 @@ const sendVerificationCode = async (req, res) => {
 const login = async (req, res) => {
   const requestId = uuidv4();
   try {
-    
-
     const { email, password } = req.body;
     const user = await User.findOne({
       where: { email },
@@ -262,7 +259,6 @@ const login = async (req, res) => {
     if (user) {
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (isPasswordValid) {
-       
         const token = generateJwtTokens(user);
 
         successResponse(res, token);
@@ -585,6 +581,31 @@ const updateUser = async (req, res) => {
   }
 };
 
+const searchUsersByPhone = async (req, res) => {
+  try {
+    const { phone } = req.query;
+
+    if (!phone) {
+      return errorResponse(res, "Phone number is required");
+    }
+
+    const users = await User.findAll({
+      where: {
+        phone: {
+          [Op.iLike]: `%${phone}%`,
+        },
+      },
+      attributes: ["id", "name", "phone", "email"],
+      limit: 10,
+    });
+
+    successResponse(res, users);
+  } catch (error) {
+    console.error("Error searching users:", error);
+    errorResponse(res, error);
+  }
+};
+
 module.exports = {
   findUserByID,
   getUsers,
@@ -599,4 +620,5 @@ module.exports = {
   getMyInfo,
   updateUser,
   getSellers,
+  searchUsersByPhone,
 };
