@@ -14,6 +14,7 @@ const {
   CategoryProductSpecification,
   InventorySettings,
   InventoryTransaction,
+  InventoryBatch,
 } = require("../../models");
 const { errorResponse, successResponse } = require("../../utils/responses");
 const { getUrl } = require("../../utils/get_url");
@@ -222,6 +223,25 @@ const addProduct = async (req, res) => {
 
       // Create initial inventory transaction if quantity > 0
       if (finalQuantity > 0) {
+        const batchNumber = `BATCH-${Date.now()}-INIT`;
+
+        // Create inventory batch
+        await InventoryBatch.create({
+          ProductId: response.id,
+          ShopId,
+          batchNumber,
+          quantity: parseInt(finalQuantity),
+          remainingQuantity: parseInt(finalQuantity),
+          costPerUnit: buyingPrice
+            ? parseFloat(`${buyingPrice}`.replace(",", ""))
+            : null,
+          location: location || null,
+          expiryDate: null,
+          status: "ACTIVE",
+        });
+
+        console.log("Initial inventory batch created");
+
         await InventoryTransaction.create({
           ProductId: response.id,
           ShopId,
@@ -230,6 +250,7 @@ const addProduct = async (req, res) => {
           quantityChange: parseInt(finalQuantity),
           quantityBefore: 0,
           quantityAfter: parseInt(finalQuantity),
+          batchNumber,
           reference: "Initial Stock",
           notes: "Initial inventory stock when product was created",
           unitCost: buyingPrice
@@ -883,6 +904,97 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+// Enhanced search for POS - search by product name, SKU, or batch number
+const searchProductsForPOS = async (req, res) => {
+  const requestId = uuidv4();
+  try {
+    const { keyword } = req.params;
+    const { shopId } = req.query;
+
+    if (!keyword || keyword.trim() === "") {
+      return successResponse(res, []);
+    }
+
+    const searchTerm = keyword.trim();
+
+    // Build search query to find products by:
+    // 1. Product name
+    // 2. SKU in InventorySettings
+    // 3. Batch number in InventoryBatch
+    const products = await Product.findAll({
+      where: {
+        ...(shopId && { ShopId: shopId }),
+        [Op.or]: [
+          // Search by product name
+          {
+            name: {
+              [Op.iLike]: `%${searchTerm}%`,
+            },
+          },
+          // Search by SKU in InventorySettings
+          {
+            "$inventorySettings.sku$": {
+              [Op.iLike]: `%${searchTerm}%`,
+            },
+          },
+          // Search by batch number in InventoryBatch
+          {
+            "$inventoryBatches.batchNumber$": {
+              [Op.iLike]: `%${searchTerm}%`,
+            },
+          },
+        ],
+      },
+      include: [
+        {
+          model: ProductImage,
+          attributes: ["id", "image"],
+        },
+        {
+          model: InventorySettings,
+          as: "inventorySettings",
+          attributes: ["sku", "barcode", "location"],
+        },
+        {
+          model: InventoryBatch,
+          as: "inventoryBatches",
+          attributes: ["batchNumber", "quantity", "expiryDate"],
+          where: {
+            quantity: {
+              [Op.gt]: 0, // Only include batches with available stock
+            },
+          },
+          required: false, // LEFT JOIN so products without batches are still included
+        },
+        {
+          model: Shop,
+          attributes: ["id", "name"],
+          required: true,
+        },
+      ],
+      distinct: true, // Avoid duplicates when product has multiple batches
+    });
+
+    childLogger.info("POS product search completed", {
+      requestId,
+      keyword: searchTerm,
+      shopId,
+      count: products.length,
+    });
+
+    successResponse(res, products);
+  } catch (error) {
+    childLogger.error("Failed to search products for POS", {
+      requestId,
+      keyword: req.params.keyword,
+      shopId: req.query.shopId,
+      error: error.message,
+      stack: error.stack,
+    });
+    errorResponse(res, error);
+  }
+};
+
 module.exports = {
   findProductByID,
   getProducts,
@@ -895,4 +1007,5 @@ module.exports = {
   getRelatedProducts,
   getProduct,
   updateProduct,
+  searchProductsForPOS,
 };

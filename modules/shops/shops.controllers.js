@@ -7,6 +7,7 @@ const {
   ShopView,
   Subscription,
   ShopFollower,
+  ShopUser,
 } = require("../../models");
 const { errorResponse, successResponse } = require("../../utils/responses");
 const { getUrl } = require("../../utils/get_url");
@@ -95,22 +96,88 @@ const getShops = async (req, res) => {
 const getUserShops = async (req, res) => {
   try {
     const { id } = req.params;
-    const response = await Shop.findAndCountAll({
-      limit: req.limit,
-      offset: req.offset,
+    
+    // Get shops where user is the owner
+    const ownedShops = await Shop.findAll({
       where: {
         name: {
           [Op.like]: `%${req.keyword}%`,
         },
         UserId: id,
       },
+      include: [ShopCalender, ShopSubscription],
     });
+
+    // Get shops where user is an invited shop user (active status)
+    const invitedShops = await Shop.findAll({
+      where: {
+        name: {
+          [Op.like]: `%${req.keyword}%`,
+        },
+      },
+      include: [
+        {
+          model: ShopUser,
+          where: {
+            phone: {
+              [Op.in]: Sequelize.literal(`(SELECT phone FROM "Users" WHERE id = '${id}')`)
+            },
+            status: 'active'
+          },
+          required: true,
+          as: 'ShopUsers'
+        },
+        ShopCalender,
+        ShopSubscription
+      ],
+    });
+
+    // Combine and deduplicate shops
+    const allShopsMap = new Map();
+    
+    ownedShops.forEach(shop => {
+      const shopData = shop.toJSON();
+      allShopsMap.set(shop.id, {
+        ...shopData,
+        userRole: 'owner',
+        permissions: {
+          hasPOSAccess: true,
+          hasInventoryAccess: true,
+          isOwner: true
+        }
+      });
+    });
+
+    invitedShops.forEach(shop => {
+      const shopData = shop.toJSON();
+      const shopUser = shopData.ShopUsers[0];
+      if (!allShopsMap.has(shop.id)) {
+        allShopsMap.set(shop.id, {
+          ...shopData,
+          userRole: 'staff',
+          permissions: {
+            hasPOSAccess: shopUser.hasPOSAccess,
+            hasInventoryAccess: shopUser.hasInventoryAccess,
+            isOwner: false
+          }
+        });
+      }
+    });
+
+    const allShops = Array.from(allShopsMap.values());
+    
+    // Apply pagination
+    const startIndex = req.offset || 0;
+    const endIndex = startIndex + (req.limit || 10);
+    const paginatedShops = allShops.slice(startIndex, endIndex);
+
     successResponse(res, {
-      count: response.count,
+      count: allShops.length,
       page: req.page,
-      ...response,
+      rows: paginatedShops,
     });
   } catch (error) {
+    console.error('Error in getUserShops:', error);
     errorResponse(res, error);
   }
 };
