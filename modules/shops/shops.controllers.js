@@ -8,6 +8,7 @@ const {
   Subscription,
   ShopFollower,
   ShopUser,
+  User,
 } = require("../../models");
 const { errorResponse, successResponse } = require("../../utils/responses");
 const { getUrl } = require("../../utils/get_url");
@@ -97,6 +98,14 @@ const getUserShops = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // First, get the user's phone number
+    const user = await User.findByPk(id);
+    if (!user) {
+      return errorResponse(res, { message: "User not found" }, 404);
+    }
+
+    console.log("Getting shops for user:", { id, phone: user.phone });
+
     // Get shops where user is the owner
     const ownedShops = await Shop.findAll({
       where: {
@@ -107,6 +116,8 @@ const getUserShops = async (req, res) => {
       },
       include: [ShopCalender, ShopSubscription],
     });
+
+    console.log("Owned shops found:", ownedShops.length);
 
     // Get shops where user is an invited shop user (active status)
     const invitedShops = await Shop.findAll({
@@ -119,11 +130,7 @@ const getUserShops = async (req, res) => {
         {
           model: ShopUser,
           where: {
-            phone: {
-              [Op.in]: Sequelize.literal(
-                `(SELECT phone FROM "Users" WHERE id = '${id}')`
-              ),
-            },
+            phone: user.phone,
             status: "active",
           },
           required: true,
@@ -133,6 +140,8 @@ const getUserShops = async (req, res) => {
         ShopSubscription,
       ],
     });
+
+    console.log("Invited shops found:", invitedShops.length);
 
     // Combine and deduplicate shops
     const allShopsMap = new Map();
@@ -167,6 +176,8 @@ const getUserShops = async (req, res) => {
     });
 
     const allShops = Array.from(allShopsMap.values());
+
+    console.log("Total shops after combining:", allShops.length);
 
     // Apply pagination
     const startIndex = req.offset || 0;
