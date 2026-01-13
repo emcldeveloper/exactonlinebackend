@@ -357,9 +357,40 @@ const getShop = async (req, res) => {
           required: false,
         },
         ShopView,
+        {
+          model: ShopUser,
+          as: 'ShopUsers',
+          where: { UserId: user.id, status: 'active' },
+          required: false,
+        }
       ],
     });
-    successResponse(res, shop);
+
+    // Add user permissions to the response
+    const shopData = shop.toJSON();
+    const isOwner = shop.UserId === user.id;
+    const shopUser = shopData.ShopUsers?.[0];
+
+    console.log('=== getShop permissions debug ===');
+    console.log('shop.UserId:', shop.UserId);
+    console.log('user.id:', user.id);
+    console.log('isOwner:', isOwner);
+    console.log('shopUser:', shopUser);
+    console.log('ShopUsers array:', shopData.ShopUsers);
+
+    shopData.userPermissions = {
+      isOwner,
+      hasPOSAccess: isOwner ? true : (shopUser?.hasPOSAccess || false),
+      hasInventoryAccess: isOwner ? true : (shopUser?.hasInventoryAccess || false),
+    };
+
+    console.log('Final userPermissions:', shopData.userPermissions);
+    console.log('=== end debug ===');
+
+    // Remove ShopUsers from response
+    delete shopData.ShopUsers;
+
+    successResponse(res, shopData);
   } catch (error) {
     errorResponse(res, error);
   }

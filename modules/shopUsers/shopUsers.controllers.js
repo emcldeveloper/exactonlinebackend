@@ -32,7 +32,8 @@ const getShopUsers = async (req, res) => {
 // Invite a new user to the shop
 const inviteShopUser = async (req, res) => {
   try {
-    const { name, phone, email, hasPOSAccess, hasInventoryAccess, shopId } = req.body;
+    const { name, phone, email, hasPOSAccess, hasInventoryAccess, shopId } =
+      req.body;
 
     // Validate required fields
     if (!phone || !shopId) {
