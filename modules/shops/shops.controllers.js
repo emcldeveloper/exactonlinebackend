@@ -56,14 +56,14 @@ const addShop = async (req, res) => {
       ShopId: response.id,
       SubscriptionId: subscription.id,
     });
-     await sendSMS(
-            "0715800430",
-            `Hello Admin,\n A new shop has been created with name: ${response.name} and needs verificaion to proceed, please help. \n\nThank you`
-          );
-      await sendSMS(
-            "0677975251",
-            `Hello Admin,\n A new shop has been created with name: ${response.name} and needs verificaion to proceed, please help. \n\nThank you`
-          );
+    await sendSMS(
+      "0715800430",
+      `Hello Admin,\n A new shop has been created with name: ${response.name} and needs verificaion to proceed, please help. \n\nThank you`
+    );
+    await sendSMS(
+      "0677975251",
+      `Hello Admin,\n A new shop has been created with name: ${response.name} and needs verificaion to proceed, please help. \n\nThank you`
+    );
     successResponse(res, response);
   } catch (error) {
     console.log(error);
@@ -96,7 +96,7 @@ const getShops = async (req, res) => {
 const getUserShops = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Get shops where user is the owner
     const ownedShops = await Shop.findAll({
       where: {
@@ -120,52 +120,54 @@ const getUserShops = async (req, res) => {
           model: ShopUser,
           where: {
             phone: {
-              [Op.in]: Sequelize.literal(`(SELECT phone FROM "Users" WHERE id = '${id}')`)
+              [Op.in]: Sequelize.literal(
+                `(SELECT phone FROM "Users" WHERE id = '${id}')`
+              ),
             },
-            status: 'active'
+            status: "active",
           },
           required: true,
-          as: 'ShopUsers'
+          as: "ShopUsers",
         },
         ShopCalender,
-        ShopSubscription
+        ShopSubscription,
       ],
     });
 
     // Combine and deduplicate shops
     const allShopsMap = new Map();
-    
-    ownedShops.forEach(shop => {
+
+    ownedShops.forEach((shop) => {
       const shopData = shop.toJSON();
       allShopsMap.set(shop.id, {
         ...shopData,
-        userRole: 'owner',
+        userRole: "owner",
         permissions: {
           hasPOSAccess: true,
           hasInventoryAccess: true,
-          isOwner: true
-        }
+          isOwner: true,
+        },
       });
     });
 
-    invitedShops.forEach(shop => {
+    invitedShops.forEach((shop) => {
       const shopData = shop.toJSON();
       const shopUser = shopData.ShopUsers[0];
       if (!allShopsMap.has(shop.id)) {
         allShopsMap.set(shop.id, {
           ...shopData,
-          userRole: 'staff',
+          userRole: "staff",
           permissions: {
             hasPOSAccess: shopUser.hasPOSAccess,
             hasInventoryAccess: shopUser.hasInventoryAccess,
-            isOwner: false
-          }
+            isOwner: false,
+          },
         });
       }
     });
 
     const allShops = Array.from(allShopsMap.values());
-    
+
     // Apply pagination
     const startIndex = req.offset || 0;
     const endIndex = startIndex + (req.limit || 10);
@@ -177,7 +179,7 @@ const getUserShops = async (req, res) => {
       rows: paginatedShops,
     });
   } catch (error) {
-    console.error('Error in getUserShops:', error);
+    console.error("Error in getUserShops:", error);
     errorResponse(res, error);
   }
 };
@@ -365,20 +367,21 @@ const resetShopPassword = async (req, res) => {
     if (!shop) {
       throw new Error("Shop not found");
     }
-   
+
     const password = randomNumber();
     const response = await shop.update({
       password,
     });
-   await sendSMS(
-       shop.phone,
-      `Hello ${shop.name},\n Your shop password has been reset to ${password}. Please use this password to log in and consider changing it after logging in for security purposes.\n\nThank you`)
+    await sendSMS(
+      shop.phone,
+      `Hello ${shop.name},\n Your shop password has been reset to ${password}. Please use this password to log in and consider changing it after logging in for security purposes.\n\nThank you`
+    );
     successResponse(res, response);
   } catch (error) {
-    console.log(error)
+    console.log(error);
     errorResponse(res, error);
   }
-}
+};
 const updateShop = async (req, res) => {
   try {
     const { id } = req.params;

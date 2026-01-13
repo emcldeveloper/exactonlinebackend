@@ -44,7 +44,7 @@ module.exports = (sequelize, DataTypes) => {
       Shop.hasMany(models.ShopUser, {
         onDelete: "CASCADE",
         scope: true,
-        as: 'ShopUsers'
+        as: "ShopUsers",
       });
       Shop.belongsTo(models.User);
     }
@@ -62,9 +62,9 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: "Business",
       },
       name: {
-        unique:true,
+        unique: true,
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: false,
       },
       phone: {
         type: DataTypes.STRING,
@@ -85,7 +85,7 @@ module.exports = (sequelize, DataTypes) => {
       password: {
         type: DataTypes.STRING,
         allowNull: true,
-      },  
+      },
       shopLat: {
         type: DataTypes.DOUBLE,
         allowNull: true,
