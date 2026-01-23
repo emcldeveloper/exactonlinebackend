@@ -378,7 +378,7 @@ const getPOSSale = async (req, res) => {
         {
           model: Shop,
           as: "shop",
-          attributes: ["id", "shopName", "location", "phone"],
+          attributes: ["id", "name", "address", "phone"],
         },
       ],
     });
