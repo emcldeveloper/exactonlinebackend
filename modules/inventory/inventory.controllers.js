@@ -215,7 +215,12 @@ const addInventoryBatch = async (req, res) => {
       requestId,
       ProductId,
       batchNumber,
+      reference,
     });
+
+    console.log("=== ADD BATCH REQUEST ===");
+    console.log("Request body:", req.body);
+    console.log("Reference:", reference);
 
     // Check if batch number already exists
     const existingBatch = await InventoryBatch.findOne({
@@ -244,6 +249,10 @@ const addInventoryBatch = async (req, res) => {
     const product = await Product.findByPk(ProductId);
     const quantityBefore = product.productQuantity || 0;
 
+    console.log("=== CREATING TRANSACTION ===");
+    console.log("Reference to be used:", reference || null);
+    console.log("Notes to be used:", notes || `Batch ${batchNumber} added`);
+
     await InventoryTransaction.create({
       ProductId,
       ShopId,
@@ -257,6 +266,8 @@ const addInventoryBatch = async (req, res) => {
       totalCost: costPerUnit ? costPerUnit * quantity : null,
       notes: notes || `Batch ${batchNumber} added`,
     });
+
+    console.log("=== TRANSACTION CREATED ===");
 
     // Update product quantity
     await product.update({
