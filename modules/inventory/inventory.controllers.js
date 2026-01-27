@@ -56,7 +56,7 @@ const addInventoryTransaction = async (req, res) => {
         return errorResponse(
           res,
           "Insufficient stock. Backorders not allowed.",
-          400
+          400,
         );
       }
     }
@@ -104,7 +104,7 @@ const addInventoryTransaction = async (req, res) => {
     return successResponse(
       res,
       { transaction, product },
-      "Inventory transaction recorded successfully"
+      "Inventory transaction recorded successfully",
     );
   } catch (error) {
     childLogger.error("Failed to add inventory transaction", {
@@ -208,6 +208,7 @@ const addInventoryBatch = async (req, res) => {
       costPerUnit,
       location,
       notes,
+      reference,
     } = req.body;
 
     childLogger.info("Adding inventory batch", {
@@ -251,9 +252,10 @@ const addInventoryBatch = async (req, res) => {
       quantityBefore,
       quantityAfter: quantityBefore + quantity,
       batchNumber,
+      reference: reference || null,
       unitCost: costPerUnit,
       totalCost: costPerUnit ? costPerUnit * quantity : null,
-      notes: `Batch ${batchNumber} added`,
+      notes: notes || `Batch ${batchNumber} added`,
     });
 
     // Update product quantity
@@ -392,7 +394,7 @@ const getProductByBatchNumber = async (req, res) => {
         {
           requestId,
           productId: batch.ProductId,
-        }
+        },
       );
 
       // Fetch product directly
@@ -489,7 +491,7 @@ const getProductByBatchNumber = async (req, res) => {
     console.log("Error stack:", error.stack);
     console.log(
       "Full error:",
-      JSON.stringify(error, Object.getOwnPropertyNames(error))
+      JSON.stringify(error, Object.getOwnPropertyNames(error)),
     );
 
     childLogger.error("Failed to fetch product by batch number", {
@@ -680,7 +682,7 @@ const updateInventorySettings = async (req, res) => {
     return successResponse(
       res,
       settings,
-      "Inventory settings updated successfully"
+      "Inventory settings updated successfully",
     );
   } catch (error) {
     childLogger.error("Failed to update inventory settings", {
@@ -720,13 +722,13 @@ const getInventoryStats = async (req, res) => {
 
     const totalProducts = products.length;
     const inStockProducts = products.filter(
-      (p) => p.productQuantity >= 10
+      (p) => p.productQuantity >= 10,
     ).length;
     const lowStockProducts = products.filter(
-      (p) => p.productQuantity > 0 && p.productQuantity < 10
+      (p) => p.productQuantity > 0 && p.productQuantity < 10,
     ).length;
     const outOfStockProducts = products.filter(
-      (p) => p.productQuantity === 0
+      (p) => p.productQuantity === 0,
     ).length;
 
     // Calculate total stock value
@@ -864,7 +866,7 @@ const checkAndCreateAlerts = async (ProductId, ShopId, currentQuantity) => {
             alertType: { [Op.in]: ["LOW_STOCK", "OUT_OF_STOCK"] },
             isResolved: false,
           },
-        }
+        },
       );
     }
   } catch (error) {
