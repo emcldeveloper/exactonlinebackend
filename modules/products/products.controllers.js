@@ -49,10 +49,10 @@ const addSpecificationFilters = (filter, query) => {
         Sequelize.where(
           Sequelize.fn(
             "CAST",
-            Sequelize.literal(`"specifications"->>'${specLabel}' AS BOOLEAN`)
+            Sequelize.literal(`"specifications"->>'${specLabel}' AS BOOLEAN`),
           ),
-          specValue === "true"
-        )
+          specValue === "true",
+        ),
       );
     } else if (!isNaN(specValue) && specValue !== "") {
       // Numeric values
@@ -62,10 +62,10 @@ const addSpecificationFilters = (filter, query) => {
           Sequelize.fn(
             "CAST",
             Sequelize.literal(`"specifications"->>'${specLabel}'`),
-            "FLOAT"
+            "FLOAT",
           ),
-          parseFloat(specValue)
-        )
+          parseFloat(specValue),
+        ),
       );
     } else {
       // String values - use case-insensitive search
@@ -74,11 +74,11 @@ const addSpecificationFilters = (filter, query) => {
         Sequelize.where(
           Sequelize.fn(
             "LOWER",
-            Sequelize.literal(`"specifications"->>'${specLabel}'`)
+            Sequelize.literal(`"specifications"->>'${specLabel}'`),
           ),
           "LIKE",
-          `%${specValue.toLowerCase()}%`
-        )
+          `%${specValue.toLowerCase()}%`,
+        ),
       );
     }
   });
@@ -154,6 +154,7 @@ const addProduct = async (req, res) => {
       isNegotiable,
       specifications,
       description,
+      address,
       CategoryId,
       SubcategoryId,
       ShopId,
@@ -190,6 +191,7 @@ const addProduct = async (req, res) => {
       isHidden,
       specifications,
       description,
+      address,
       CategoryId,
       SubcategoryId,
       ShopId,

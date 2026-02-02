@@ -122,6 +122,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      address: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
       productQuantity: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -131,7 +135,7 @@ module.exports = (sequelize, DataTypes) => {
     {
       sequelize,
       modelName: "Product",
-    }
+    },
   );
   return Product;
 };
