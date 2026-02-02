@@ -340,13 +340,16 @@ const addProduct = async (req, res) => {
 const getProducts = async (req, res) => {
   const requestId = uuidv4();
   try {
-    const { category } = req.query;
+    const { category, region, district, ward } = req.query;
     childLogger.http("Received get products request", {
       requestId,
       method: req.method,
       url: req.url,
       query: {
         category,
+        region,
+        district,
+        ward,
         keyword: req.keyword,
         limit: req.limit,
         offset: req.offset,
@@ -363,6 +366,23 @@ const getProducts = async (req, res) => {
     // Support filtering by CategoryId or SubcategoryId
     if (category && category.toLowerCase() !== "all") {
       filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
+    }
+
+    // Add location filters
+    if (region && region.toLowerCase() !== "all") {
+      filter.address = {
+        [Op.like]: `%${region}%`,
+      };
+    }
+    if (district && district.toLowerCase() !== "all") {
+      filter.address = {
+        [Op.like]: `%${district}%`,
+      };
+    }
+    if (ward && ward.toLowerCase() !== "all") {
+      filter.address = {
+        [Op.like]: `%${ward}%`,
+      };
     }
 
     // Add specification filters
@@ -413,7 +433,7 @@ const getProducts = async (req, res) => {
 const getNewArrivalProducts = async (req, res) => {
   const requestId = uuidv4();
   try {
-    const { category } = req.query;
+    const { category, region, district, ward } = req.query;
     let includes = [
       ProductImage,
       {
@@ -440,6 +460,23 @@ const getNewArrivalProducts = async (req, res) => {
     // Support filtering by CategoryId or SubcategoryId
     if (category && category.toLowerCase() !== "all") {
       filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
+    }
+
+    // Add location filters
+    if (region && region.toLowerCase() !== "all") {
+      filter.address = {
+        [Op.like]: `%${region}%`,
+      };
+    }
+    if (district && district.toLowerCase() !== "all") {
+      filter.address = {
+        [Op.like]: `%${district}%`,
+      };
+    }
+    if (ward && ward.toLowerCase() !== "all") {
+      filter.address = {
+        [Op.like]: `%${ward}%`,
+      };
     }
 
     // Add specification filters
