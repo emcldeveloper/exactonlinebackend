@@ -13,6 +13,10 @@ module.exports = (sequelize, DataTypes) => {
       Category.hasMany(models.CategoryProductSpecification);
       Category.hasMany(models.Subcategory);
       Category.hasMany(models.Product);
+      Category.hasOne(models.CategorySettings, {
+        foreignKey: "categoryId",
+        as: "settings",
+      });
     }
   }
   Category.init(
@@ -39,7 +43,7 @@ module.exports = (sequelize, DataTypes) => {
     {
       sequelize,
       modelName: "Category",
-    }
+    },
   );
   return Category;
 };

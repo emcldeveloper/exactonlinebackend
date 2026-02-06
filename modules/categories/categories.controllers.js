@@ -4,6 +4,7 @@ const {
   CategoryProductSpecification,
   Product,
   Subcategory,
+  CategorySettings,
 } = require("../../models");
 const { errorResponse, successResponse } = require("../../utils/responses");
 const { getUrl } = require("../../utils/get_url");
@@ -90,6 +91,11 @@ const getCategories = async (req, res) => {
             ["createdAt", "DESC"],
           ],
         },
+        {
+          model: CategorySettings,
+          as: "settings",
+          required: false,
+        },
       ],
       attributes: {
         include: [
@@ -105,7 +111,7 @@ const getCategories = async (req, res) => {
       },
       order: [
         // Order category product specifications from lowest 'order' value (0 upwards)
-        [CategoryProductSpecification, 'order', 'ASC'],
+        [CategoryProductSpecification, "order", "ASC"],
         [
           Sequelize.literal(`(
             SELECT COUNT(*)
@@ -130,7 +136,16 @@ const getCategories = async (req, res) => {
 const getCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const category = await findCategoryByID(id);
+    const category = await Category.findOne({
+      where: { id },
+      include: [
+        {
+          model: CategorySettings,
+          as: "settings",
+          required: false,
+        },
+      ],
+    });
     successResponse(res, category);
   } catch (error) {
     errorResponse(res, error);

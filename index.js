@@ -9,6 +9,7 @@ const { Server } = require("socket.io");
 const AdDimensionsRoutes = require("./modules/adDimensions/adDimensions.routes");
 const AdsRoutes = require("./modules/ads/ads.routes");
 const CategoriesRoutes = require("./modules/categories/categories.routes");
+const CategorySettingsRoutes = require("./modules/categorySettings/categorySettings.routes");
 const CategoryProductSpecificationsRoutes = require("./modules/categoryProductSpecifications/categoryProductSpecifications.routes");
 const ChatsRoutes = require("./modules/chats/chats.routes");
 const TopicsRoutes = require("./modules/topics/topics.routes");
@@ -104,6 +105,7 @@ app.use(bodyParser.text({ type: "text/plain" }));
 app.use("/ad-dimensions", adDimensionsTag, AdDimensionsRoutes);
 app.use("/ads", adsTag, AdsRoutes);
 app.use("/categories", categoriesTag, CategoriesRoutes);
+app.use("/category-settings", CategorySettingsRoutes);
 app.use("/products", productsTag, ProductsRoutes);
 app.use("/services", servicesTag, ServicesRoutes);
 app.use("/sub-categories", subCategoriesTag, SubCategoriesRoutes);
@@ -136,7 +138,7 @@ app.use("/", ShopUsersRoutes); // Shop users routes (includes /shops/:shopId/use
 app.use(
   "/shops-subscriptions",
   shopsSubscriptionsTag,
-  ShopsSubscriptionsRoutes
+  ShopsSubscriptionsRoutes,
 );
 app.use("/shop-views", shopViewsTag, ShopViewRoutes);
 app.use("/subscriptions", subscriptionsTag, SubscriptionRoutes);
@@ -144,7 +146,7 @@ app.use("/users", usersTag, UserRoutes);
 app.use(
   "/category-product-specifications",
   categoryProductSpecificationsTag,
-  CategoryProductSpecificationsRoutes
+  CategoryProductSpecificationsRoutes,
 );
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.get("/", (req, res) => {
@@ -158,7 +160,7 @@ app.get("/scrap", scrapeResults);
 app.get("/open-app", (req, res) => {
   try {
     res.redirect(
-      "https://play.google.com/store/apps/details?id=com.exactmanpower.e_online"
+      "https://play.google.com/store/apps/details?id=com.exactmanpower.e_online",
     );
   } catch (error) {
     errorResponse(res, error);
