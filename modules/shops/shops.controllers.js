@@ -35,8 +35,17 @@ const findShopByID = async (id) => {
 };
 const addShop = async (req, res) => {
   try {
-    let { registeredBy, name, phone, address, description, UserId, shopType } =
-      req.body;
+    let {
+      registeredBy,
+      name,
+      phone,
+      address,
+      description,
+      UserId,
+      shopType,
+      shopImage,
+      documentUrls,
+    } = req.body;
     console.log(req.body);
     const user = req.user;
     if (!user) {
@@ -49,8 +58,24 @@ const addShop = async (req, res) => {
       address,
       description,
       shopType: shopType || "both",
+      shopImage: shopImage || null,
       UserId: UserId || user.id,
     });
+
+    // Save shop documents if provided
+    if (
+      documentUrls &&
+      Array.isArray(documentUrls) &&
+      documentUrls.length > 0
+    ) {
+      for (const docUrl of documentUrls) {
+        await ShopDocument.create({
+          ShopId: response.id,
+          document: docUrl,
+        });
+      }
+    }
+
     //find first subscription and add it to shop
     const subscription = await Subscription.findOne({
       where: {
