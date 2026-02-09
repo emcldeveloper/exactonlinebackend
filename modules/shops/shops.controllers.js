@@ -76,10 +76,14 @@ const addShop = async (req, res) => {
       documentUrls.length > 0
     ) {
       for (const docUrl of documentUrls) {
-        await ShopDocument.create({
-          ShopId: response.id,
-          document: docUrl,
-        });
+        // Only create document if it's a valid string
+        if (docUrl && typeof docUrl === "string" && docUrl.trim() !== "") {
+          await ShopDocument.create({
+            ShopId: response.id,
+            url: docUrl,
+            title: `Document ${documentUrls.indexOf(docUrl) + 1}`,
+          });
+        }
       }
     }
 
