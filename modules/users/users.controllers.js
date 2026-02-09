@@ -44,7 +44,7 @@ const addUser = async (req, res) => {
     childLogger.info("Sending verification SMS", { requestId, phone });
     await sendSMS(
       phone,
-      `Dear ${name},\n\n your verification code is ${code}, Enter this code in the form to proceed with the app. \n\nThank you`
+      `Dear ${name},\n\n your verification code is ${code}, Enter this code in the form to proceed with the app. \n\nThank you`,
     );
 
     let hashedPassword = null;
@@ -210,7 +210,7 @@ const sendVerificationCode = async (req, res) => {
       childLogger.info("Sending verification SMS", { requestId, phone });
       await sendSMS(
         phone,
-        `Dear ${user.name},\nyour verification code is ${code}, Enter this code in the form to proceed with the app. \n\nThank you`
+        `Dear ${user.name},\nyour verification code is ${code}, Enter this code in the form to proceed with the app. \n\nThank you`,
       );
 
       childLogger.info("Updating user with verification code", {
@@ -295,8 +295,22 @@ const verifyCode = async (req, res) => {
     if (user) {
       if (user.passcode == passcode) {
         const token = generateJwtTokens(user);
-        console.log("token", token);
-        successResponse(res, token);
+
+        // Fetch user's shops
+        const shops = await Shop.findAll({
+          where: { userId: user.id },
+          limit: 50,
+        });
+
+        // Include shops in the response
+        const response = {
+          ...token,
+          user: user.dataValues,
+          shops: shops || [],
+        };
+
+        console.log("token", response);
+        successResponse(res, response);
       } else {
         res.status(401).send({
           status: false,
