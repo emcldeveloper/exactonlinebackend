@@ -51,6 +51,13 @@ const addShop = async (req, res) => {
     if (!user) {
       return errorResponse(res, "User not found", 404);
     }
+
+    // Validate and clean shopImage - ensure it's a string or null
+    let cleanShopImage = null;
+    if (shopImage && typeof shopImage === "string" && shopImage.trim() !== "") {
+      cleanShopImage = shopImage;
+    }
+
     const response = await Shop.create({
       registeredBy,
       name,
@@ -58,7 +65,7 @@ const addShop = async (req, res) => {
       address,
       description,
       shopType: shopType || "both",
-      shopImage: shopImage || null,
+      shopImage: cleanShopImage,
       UserId: UserId || user.id,
     });
 
