@@ -38,6 +38,10 @@ const addShop = async (req, res) => {
     let { registeredBy, name, phone, address, description, UserId, shopType } =
       req.body;
     console.log(req.body);
+    const user = req.user;
+    if (!user) {
+      return errorResponse(res, "User not found", 404);
+    }
     const response = await Shop.create({
       registeredBy,
       name,
@@ -45,7 +49,7 @@ const addShop = async (req, res) => {
       address,
       description,
       shopType: shopType || "both",
-      UserId: UserId,
+      UserId: UserId || user.id,
     });
     //find first subscription and add it to shop
     const subscription = await Subscription.findOne({
