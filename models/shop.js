@@ -61,6 +61,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         defaultValue: "Business",
       },
+      shopType: {
+        type: DataTypes.ENUM("products", "services", "both"),
+        allowNull: false,
+        defaultValue: "both",
+      },
       name: {
         unique: true,
         type: DataTypes.STRING,
@@ -106,7 +111,7 @@ module.exports = (sequelize, DataTypes) => {
     {
       sequelize,
       modelName: "Shop",
-    }
+    },
   );
   return Shop;
 };

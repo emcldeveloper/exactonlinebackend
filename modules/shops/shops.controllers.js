@@ -35,7 +35,8 @@ const findShopByID = async (id) => {
 };
 const addShop = async (req, res) => {
   try {
-    let { registeredBy, name, phone, address, description, UserId } = req.body;
+    let { registeredBy, name, phone, address, description, UserId, shopType } =
+      req.body;
     console.log(req.body);
     const response = await Shop.create({
       registeredBy,
@@ -43,6 +44,7 @@ const addShop = async (req, res) => {
       phone,
       address,
       description,
+      shopType: shopType || "both",
       UserId: UserId,
     });
     //find first subscription and add it to shop
@@ -59,11 +61,11 @@ const addShop = async (req, res) => {
     });
     await sendSMS(
       "0715800430",
-      `Hello Admin,\n A new shop has been created with name: ${response.name} and needs verificaion to proceed, please help. \n\nThank you`
+      `Hello Admin,\n A new shop has been created with name: ${response.name} and needs verificaion to proceed, please help. \n\nThank you`,
     );
     await sendSMS(
       "0677975251",
-      `Hello Admin,\n A new shop has been created with name: ${response.name} and needs verificaion to proceed, please help. \n\nThank you`
+      `Hello Admin,\n A new shop has been created with name: ${response.name} and needs verificaion to proceed, please help. \n\nThank you`,
     );
     successResponse(res, response);
   } catch (error) {
@@ -200,7 +202,7 @@ const getUserShopFollowings = async (req, res) => {
             Sequelize.literal(
               `(SELECT COUNT(*) 
               FROM "ShopFollowers"
-              WHERE "ShopFollowers"."ShopId" = "Shop"."id")`
+              WHERE "ShopFollowers"."ShopId" = "Shop"."id")`,
             ),
             "followers", // Alias for the count of followers
           ],
@@ -256,7 +258,7 @@ const getShop = async (req, res) => {
                 FROM "ShopSubscriptions"
                 WHERE "ShopSubscriptions"."ShopId" = "Shop"."id"
                 AND "ShopSubscriptions"."expireDate" > NOW() 
-              ))`
+              ))`,
             ),
             "isSubscribed",
           ],
@@ -264,7 +266,7 @@ const getShop = async (req, res) => {
             Sequelize.literal(
               `(SELECT COUNT(*) 
               FROM "ShopFollowers"
-              WHERE "ShopFollowers"."ShopId" = "Shop"."id")`
+              WHERE "ShopFollowers"."ShopId" = "Shop"."id")`,
             ),
             "followers", // Alias for the count of followers
           ],
@@ -412,7 +414,7 @@ const resetShopPassword = async (req, res) => {
     });
     await sendSMS(
       shop.phone,
-      `Hello ${shop.name},\n Your shop password has been reset to ${password}. Please use this password to log in and consider changing it after logging in for security purposes.\n\nThank you`
+      `Hello ${shop.name},\n Your shop password has been reset to ${password}. Please use this password to log in and consider changing it after logging in for security purposes.\n\nThank you`,
     );
     successResponse(res, response);
   } catch (error) {
