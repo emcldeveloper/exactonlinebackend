@@ -298,7 +298,7 @@ const verifyCode = async (req, res) => {
 
         // Fetch user's shops
         const shops = await Shop.findAll({
-          where: { userId: user.id },
+          where: { UserId: user.id },
           limit: 50,
         });
 
