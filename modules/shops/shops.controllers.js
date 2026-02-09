@@ -34,6 +34,9 @@ const findShopByID = async (id) => {
   }
 };
 const addShop = async (req, res) => {
+  // Start a transaction
+  const t = await Sequelize.transaction();
+
   try {
     let {
       registeredBy,
@@ -58,16 +61,20 @@ const addShop = async (req, res) => {
       cleanShopImage = shopImage;
     }
 
-    const response = await Shop.create({
-      registeredBy,
-      name,
-      phone,
-      address,
-      description,
-      shopType: shopType || "both",
-      shopImage: cleanShopImage,
-      UserId: UserId || user.id,
-    });
+    // Create shop within transaction
+    const response = await Shop.create(
+      {
+        registeredBy,
+        name,
+        phone,
+        address,
+        description,
+        shopType: shopType || "both",
+        shopImage: cleanShopImage,
+        UserId: UserId || user.id,
+      },
+      { transaction: t },
+    );
 
     // Save shop documents if provided
     if (
@@ -78,37 +85,60 @@ const addShop = async (req, res) => {
       for (const docUrl of documentUrls) {
         // Only create document if it's a valid string
         if (docUrl && typeof docUrl === "string" && docUrl.trim() !== "") {
-          await ShopDocument.create({
-            ShopId: response.id,
-            url: docUrl,
-            title: `Document ${documentUrls.indexOf(docUrl) + 1}`,
-          });
+          await ShopDocument.create(
+            {
+              ShopId: response.id,
+              url: docUrl,
+              title: `Document ${documentUrls.indexOf(docUrl) + 1}`,
+            },
+            { transaction: t },
+          );
         }
       }
     }
 
-    //find first subscription and add it to shop
+    // Find first subscription - order by createdAt to get the oldest/default one
     const subscription = await Subscription.findOne({
-      where: {
-        id: {
-          [Op.ne]: 0,
-        },
+      order: [["createdAt", "ASC"]],
+    });
+
+    if (!subscription) {
+      throw new Error(
+        "No subscription plan found. Please create a default subscription plan first.",
+      );
+    }
+
+    // Create shop subscription within transaction
+    await ShopSubscription.create(
+      {
+        ShopId: response.id,
+        SubscriptionId: subscription.id,
       },
-    });
-    await ShopSubscription.create({
-      ShopId: response.id,
-      SubscriptionId: subscription.id,
-    });
-    await sendSMS(
-      "0715800430",
-      `Hello Admin,\n A new shop has been created with name: ${response.name} and needs verificaion to proceed, please help. \n\nThank you`,
+      { transaction: t },
     );
-    await sendSMS(
-      "0677975251",
-      `Hello Admin,\n A new shop has been created with name: ${response.name} and needs verificaion to proceed, please help. \n\nThank you`,
-    );
+
+    // Commit the transaction - all database operations successful
+    await t.commit();
+
+    // Send SMS notifications (outside transaction - these can fail without affecting shop creation)
+    try {
+      await sendSMS(
+        "0715800430",
+        `Hello Admin,\n A new shop has been created with name: ${response.name} and needs verificaion to proceed, please help. \n\nThank you`,
+      );
+      await sendSMS(
+        "0677975251",
+        `Hello Admin,\n A new shop has been created with name: ${response.name} and needs verificaion to proceed, please help. \n\nThank you`,
+      );
+    } catch (smsError) {
+      console.error("SMS notification failed:", smsError);
+      // Don't throw error - shop is already created successfully
+    }
+
     successResponse(res, response);
   } catch (error) {
+    // Rollback the transaction on any error
+    await t.rollback();
     console.log(error);
     errorResponse(res, error);
   }
