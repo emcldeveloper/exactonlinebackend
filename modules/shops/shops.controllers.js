@@ -9,6 +9,7 @@ const {
   ShopFollower,
   ShopUser,
   User,
+  sequelize,
 } = require("../../models");
 const { errorResponse, successResponse } = require("../../utils/responses");
 const { getUrl } = require("../../utils/get_url");
@@ -35,7 +36,7 @@ const findShopByID = async (id) => {
 };
 const addShop = async (req, res) => {
   // Start a transaction
-  const t = await Sequelize.transaction();
+  const t = await sequelize.transaction();
 
   try {
     let {
