@@ -278,6 +278,50 @@ const deleteReel = async (req, res) => {
   }
 };
 
+/**
+ * Get trending reels based on likes and recent activity
+ */
+const getTrendingReels = async (req, res) => {
+  try {
+    const response = await Reel.findAndCountAll({
+      limit: req.limit,
+      offset: req.offset,
+      order: [
+        [Sequelize.literal('"likes"'), "DESC"],
+        ["createdAt", "DESC"],
+      ],
+      where: {
+        caption: {
+          [Op.like]: `%${req.keyword}%`,
+        },
+      },
+      attributes: {
+        include: [
+          [
+            Sequelize.literal(`
+              (
+                SELECT COUNT(*)
+                FROM "ReelStats"
+                WHERE "ReelStats"."ReelId" = "Reel"."id"
+                AND "ReelStats"."type" = 'like'
+              )
+            `),
+            "likes",
+          ],
+        ],
+      },
+      include: [Shop],
+    });
+    successResponse(res, {
+      count: response.count,
+      page: req.page,
+      ...response,
+    });
+  } catch (error) {
+    errorResponse(res, error);
+  }
+};
+
 module.exports = {
   getReels,
   addReel,
@@ -286,4 +330,5 @@ module.exports = {
   addReel,
   getReel,
   updateReel,
+  getTrendingReels,
 };

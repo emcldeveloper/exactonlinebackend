@@ -1034,6 +1034,71 @@ const searchProductsForPOS = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /products/popular:
+ *   get:
+ *     summary: Get popular products based on orders and views
+ *     tags:
+ *       - Products
+ */
+const getPopularProducts = async (req, res) => {
+  const requestId = uuidv4();
+  try {
+    childLogger.info("Getting popular products", { requestId });
+
+    const response = await Product.findAndCountAll({
+      limit: req.limit,
+      offset: req.offset,
+      order: [
+        [Sequelize.literal('"orderCount"'), "DESC"],
+        [Sequelize.literal('"viewCount"'), "DESC"],
+        ["createdAt", "DESC"],
+      ],
+      attributes: {
+        include: [
+          [
+            Sequelize.literal(`
+              (SELECT COUNT(DISTINCT "OrderId")
+               FROM "OrderedProducts"
+               WHERE "OrderedProducts"."ProductId" = "Product"."id")
+            `),
+            "orderCount",
+          ],
+          [
+            Sequelize.literal(`
+              (SELECT COUNT(*)
+               FROM "ProductStats"
+               WHERE "ProductStats"."ProductId" = "Product"."id"
+               AND "ProductStats"."type" = 'view')
+            `),
+            "viewCount",
+          ],
+        ],
+      },
+      include: [ProductImage, Shop],
+    });
+
+    childLogger.info("Popular products retrieved successfully", {
+      requestId,
+      count: response.count,
+    });
+
+    successResponse(res, {
+      count: response.count,
+      page: req.page,
+      ...response,
+    });
+  } catch (error) {
+    childLogger.error("Failed to get popular products", {
+      requestId,
+      error: error.message,
+      stack: error.stack,
+    });
+    errorResponse(res, error);
+  }
+};
+
 module.exports = {
   findProductByID,
   getProducts,
@@ -1047,4 +1112,5 @@ module.exports = {
   getProduct,
   updateProduct,
   searchProductsForPOS,
+  getPopularProducts,
 };

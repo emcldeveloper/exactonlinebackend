@@ -12,6 +12,7 @@ const {
   getRelatedProducts,
   getProductSearch,
   searchProductsForPOS,
+  getPopularProducts,
 } = require("./products.controllers");
 const { getPagination } = require("../../utils/getPagination");
 const {
@@ -31,44 +32,45 @@ const router = Router();
 // Cache middleware generators
 const productsCacheMiddleware = cacheMiddleware(
   (req, userId) => generateProductCacheKey(req.query, userId),
-  300
+  300,
 );
 
 const productDetailCacheMiddleware = cacheMiddleware(
   (req, userId) => generateProductDetailCacheKey(req.params.id, userId),
-  600
+  600,
 );
 
 const shopProductsCacheMiddleware = cacheMiddleware(
   (req, userId) =>
     generateShopProductsCacheKey(req.params.id, req.query, userId),
-  300
+  300,
 );
 
 const newArrivalCacheMiddleware = cacheMiddleware(
   (req, userId) => generateNewArrivalCacheKey(req.query, userId),
-  300
+  300,
 );
 
 const forYouCacheMiddleware = cacheMiddleware(
   (req, userId) => generateForYouCacheKey(req.query, userId),
-  180
+  180,
 ); // Shorter TTL for personalized content
 
 const searchCacheMiddleware = cacheMiddleware(
   (req, userId) => generateProductSearchCacheKey(req.params.keyword, userId),
-  600
+  600,
 );
 
 const relatedProductsCacheMiddleware = cacheMiddleware(
   (req, userId) =>
     generateRelatedProductsCacheKey(req.params.id, req.query, userId),
-  600
+  600,
 );
 
 router.post("/", validateJWT, addProduct);
 router.get("/", validateJWT, getPagination, getProducts);
 router.get("/new", validateJWT, getPagination, getNewArrivalProducts);
+router.get("/popular", validateJWT, getPagination, getPopularProducts);
 router.get("/search/:keyword", validateJWT, getProductSearch);
 router.get("/pos/search/:keyword", validateJWT, searchProductsForPOS);
 router.get("/for-you", validateJWT, getPagination, getProductsForYou);
@@ -77,7 +79,7 @@ router.get(
   "/related/product/:id",
   validateJWT,
   getPagination,
-  getRelatedProducts
+  getRelatedProducts,
 );
 router.get("/:id", validateJWT, getProduct);
 router.patch("/:id", validateJWT, updateProduct);
