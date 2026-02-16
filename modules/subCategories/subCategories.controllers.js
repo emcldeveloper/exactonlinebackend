@@ -81,6 +81,89 @@ const addSubCategory = async (req, res) => {
   }
 };
 
+const { Op, Sequelize } = require("sequelize");
+const { Subcategory, Category } = require("../../models");
+const { errorResponse, successResponse } = require("../../utils/responses");
+const { getUrl } = require("../../utils/get_url");
+
+const findSubCategoryByID = async (id) => {
+  try {
+    const subcategory = await Subcategory.findOne({
+      where: {
+        id,
+      },
+      include: [
+        {
+          model: Category,
+          as: "Category",
+        },
+      ],
+    });
+    return subcategory;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};
+
+const addSubCategory = async (req, res) => {
+  try {
+    let { name, CategoryId } = req.body;
+
+    // Validate required fields
+    if (!name) {
+      return res.status(400).json({
+        status: false,
+        message: "Name is required",
+      });
+    }
+
+    if (!CategoryId) {
+      return res.status(400).json({
+        status: false,
+        message: "Category ID is required",
+      });
+    }
+
+    // Check if category exists
+    const category = await Category.findByPk(CategoryId);
+    if (!category) {
+      return res.status(404).json({
+        status: false,
+        message: "Category not found",
+      });
+    }
+
+    // Check if subcategory with same name already exists in this category
+    const existingSubCategory = await Subcategory.findOne({
+      where: {
+        name,
+        CategoryId,
+      },
+    });
+
+    if (existingSubCategory) {
+      return res.status(409).json({
+        status: false,
+        message: "Subcategory with this name already exists in this category",
+      });
+    }
+
+    const response = await Subcategory.create({
+      name,
+      CategoryId,
+    });
+
+    // Fetch the created subcategory with category details
+    const subcategoryWithCategory = await findSubCategoryByID(response.id);
+
+    successResponse(res, subcategoryWithCategory);
+  } catch (error) {
+    console.log(error);
+    errorResponse(res, error);
+  }
+};
+
 const getSubCategories = async (req, res) => {
   try {
     const { CategoryId } = req.query;
@@ -93,6 +176,18 @@ const getSubCategories = async (req, res) => {
           as: "Category",
         },
       ],
+      attributes: {
+        include: [
+          [
+            Sequelize.literal(`(
+              SELECT COUNT(*)
+              FROM "Products"
+              WHERE "Products"."SubcategoryId" = "Subcategory"."id"
+            )`),
+            "productsCount",
+          ],
+        ],
+      },
       limit: req.limit,
       offset: req.offset,
       order: [["createdAt", "DESC"]],
