@@ -43,14 +43,14 @@ const getCategorySettings = async (req, res) => {
 const createOrUpdateCategorySettings = async (req, res) => {
   try {
     const { categoryId } = req.params;
-    
+
     // Log the incoming request body to track what's being received
     console.log("====================================");
     console.log("Category Settings Update Request:");
     console.log("Category ID:", categoryId);
     console.log("Request Body:", JSON.stringify(req.body, null, 2));
     console.log("====================================");
-    
+
     const {
       categoryProductLabel,
       showProductLinks,
@@ -82,7 +82,10 @@ const createOrUpdateCategorySettings = async (req, res) => {
       priceTimeLimit,
     };
 
-    console.log("Settings data to save:", JSON.stringify(settingsData, null, 2));
+    console.log(
+      "Settings data to save:",
+      JSON.stringify(settingsData, null, 2),
+    );
 
     if (settings) {
       // Update existing settings
