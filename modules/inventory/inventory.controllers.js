@@ -7,6 +7,8 @@ const {
   InventorySettings,
   ProductImage,
   Shop,
+  Category,
+  CategorySettings,
 } = require("../../models");
 const { errorResponse, successResponse } = require("../../utils/responses");
 const logger = require("../../utils/logger");
@@ -721,36 +723,60 @@ const getInventoryStats = async (req, res) => {
     // Get all products for the shop
     const products = await Product.findAll({
       where: { ShopId },
-      attributes: ["id", "name", "productQuantity", "sellingPrice"],
+      attributes: [
+        "id",
+        "name",
+        "productQuantity",
+        "sellingPrice",
+        "CategoryId",
+      ],
       include: [
         {
           model: InventorySettings,
           as: "inventorySettings",
           attributes: ["lowStockThreshold", "buyingPrice"],
         },
+        {
+          model: Category,
+          as: "Category",
+          include: [
+            {
+              model: CategorySettings,
+              as: "settings",
+              attributes: ["showProductONInventory"],
+            },
+          ],
+        },
       ],
     });
 
-    const totalProducts = products.length;
-    const inStockProducts = products.filter(
+    // Filter products by showProductONInventory setting
+    const filteredProducts = products.filter((product) => {
+      const showOnInventory =
+        product.Category?.settings?.showProductONInventory;
+      return showOnInventory !== false; // Show if true or undefined/null
+    });
+
+    const totalProducts = filteredProducts.length;
+    const inStockProducts = filteredProducts.filter(
       (p) => p.productQuantity >= 10,
     ).length;
-    const lowStockProducts = products.filter(
+    const lowStockProducts = filteredProducts.filter(
       (p) => p.productQuantity > 0 && p.productQuantity < 10,
     ).length;
-    const outOfStockProducts = products.filter(
+    const outOfStockProducts = filteredProducts.filter(
       (p) => p.productQuantity === 0,
     ).length;
 
     // Calculate total stock value
-    const totalStockValue = products.reduce((sum, p) => {
+    const totalStockValue = filteredProducts.reduce((sum, p) => {
       const qty = p.productQuantity || 0;
       const price = parseFloat(p.sellingPrice) || 0;
       return sum + qty * price;
     }, 0);
 
     // Calculate inventory cost
-    const totalCost = products.reduce((sum, p) => {
+    const totalCost = filteredProducts.reduce((sum, p) => {
       const qty = p.productQuantity || 0;
       const buyingPrice = parseFloat(p.inventorySettings?.buyingPrice) || 0;
       return sum + qty * buyingPrice;
