@@ -25,8 +25,24 @@ const findServiceByID = async (id) => {
 };
 const addService = async (req, res) => {
   try {
-    let { name, price, serviceLink, description, CategoryId, ShopId } =
-      req.body;
+    let {
+      name,
+      price,
+      serviceLink,
+      description,
+      CategoryId,
+      ShopId,
+      providerLinks,
+      providerPhones,
+      providerEmails,
+      providerDocuments,
+      providerAddress,
+      yearsOfExperience,
+      certifications,
+      workingHours,
+      serviceArea,
+    } = req.body;
+
     const response = await Service.create({
       name,
       price,
@@ -34,6 +50,15 @@ const addService = async (req, res) => {
       description,
       CategoryId,
       ShopId,
+      providerLinks: providerLinks || [],
+      providerPhones: providerPhones || [],
+      providerEmails: providerEmails || [],
+      providerDocuments: providerDocuments || [],
+      providerAddress,
+      yearsOfExperience,
+      certifications: certifications || [],
+      workingHours,
+      serviceArea,
     });
 
     // Invalidate relevant caches

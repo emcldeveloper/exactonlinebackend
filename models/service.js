@@ -53,11 +53,52 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      providerLinks: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        defaultValue: [],
+      },
+      providerPhones: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        defaultValue: [],
+      },
+      providerEmails: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        defaultValue: [],
+      },
+      providerDocuments: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        defaultValue: [],
+      },
+      providerAddress: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      yearsOfExperience: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      certifications: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        defaultValue: [],
+      },
+      workingHours: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      serviceArea: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
       sequelize,
       modelName: "Service",
-    }
+    },
   );
   return Service;
 };
