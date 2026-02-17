@@ -1,5 +1,16 @@
 const { Op } = require("sequelize");
-const { Chat,Shop,User,Topic,Message, Sequelize } = require("../../models");
+const {
+  Chat,
+  Shop,
+  User,
+  Topic,
+  Message,
+  Sequelize,
+  Product,
+  ProductImage,
+  Service,
+  ServiceImage,
+} = require("../../models");
 const { errorResponse, successResponse } = require("../../utils/responses");
 
 const findChatByID = async (id) => {
@@ -8,7 +19,7 @@ const findChatByID = async (id) => {
       where: {
         id,
       },
-      include: [Shop, User]
+      include: [Shop, User],
     });
     return chat;
   } catch (error) {
@@ -16,29 +27,28 @@ const findChatByID = async (id) => {
     throw error;
   }
 };
-const addChat = async (req, res,next) => {
+const addChat = async (req, res, next) => {
   try {
     let { ShopId, UserId } = req.body;
 
     let chat = await Chat.findOne({
       where: {
         ShopId,
-        UserId
+        UserId,
       },
-      include: [Shop, User]
+      include: [Shop, User],
     });
 
     // If no chat was found, you can handle it by creating a new one (optional)
     if (!chat) {
       chat = await Chat.create({
         ShopId,
-        UserId
+        UserId,
       });
-      chat = await findChatByID(chat.id)
+      chat = await findChatByID(chat.id);
     }
-    req.body.ChatId = chat.id
-    next()
- 
+    req.body.ChatId = chat.id;
+    next();
   } catch (error) {
     console.log(error);
     errorResponse(res, error);
@@ -68,7 +78,7 @@ const getUserChats = async (req, res) => {
       offset: req.offset,
       order: [
         // Reference the alias defined in attributes
-        [Sequelize.col('"lastMessageDatetime"'), 'DESC', 'NULLS LAST'],
+        [Sequelize.col('"lastMessageDatetime"'), "DESC", "NULLS LAST"],
       ],
       attributes: {
         include: [
@@ -121,13 +131,13 @@ const getUserChats = async (req, res) => {
       },
       include: [
         {
-          model:User,
-          required:true
+          model: User,
+          required: true,
         },
-       {
-        model: Shop,
-        required:true
-       },
+        {
+          model: Shop,
+          required: true,
+        },
         {
           model: Topic,
           include: [
@@ -136,6 +146,24 @@ const getUserChats = async (req, res) => {
               limit: 1,
               order: [["createdAt", "DESC"]],
               attributes: ["message"],
+            },
+            {
+              model: Product,
+              include: [
+                {
+                  model: ProductImage,
+                  limit: 1,
+                },
+              ],
+            },
+            {
+              model: Service,
+              include: [
+                {
+                  model: ServiceImage,
+                  limit: 1,
+                },
+              ],
             },
           ],
         },
@@ -159,7 +187,7 @@ const getShopChats = async (req, res) => {
     const response = await Chat.findAndCountAll({
       order: [
         // Reference the alias defined in attributes
-        [Sequelize.col('"lastMessageDatetime"'), 'DESC', 'NULLS LAST'],
+        [Sequelize.col('"lastMessageDatetime"'), "DESC", "NULLS LAST"],
       ],
       limit: req.limit,
       offset: req.offset,
@@ -214,13 +242,13 @@ const getShopChats = async (req, res) => {
       },
       include: [
         {
-          model:User,
-          required:true
+          model: User,
+          required: true,
         },
-       {
-        model: Shop,
-        required:true
-       },
+        {
+          model: Shop,
+          required: true,
+        },
         {
           model: Topic,
           include: [
