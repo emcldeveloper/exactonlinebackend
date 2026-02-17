@@ -11,6 +11,8 @@ const {
   User,
   Order,
   Shop,
+  Category,
+  CategorySettings,
   CategoryProductSpecification,
   InventorySettings,
   InventoryTransaction,
@@ -394,6 +396,16 @@ const getProducts = async (req, res) => {
         model: Shop,
         required: true,
       },
+      {
+        model: Category,
+        as: "category",
+        include: [
+          {
+            model: CategorySettings,
+            as: "settings",
+          },
+        ],
+      },
       ProductStat,
       ProductReview,
     ];
@@ -482,6 +494,33 @@ const getNewArrivalProducts = async (req, res) => {
     // Add specification filters
     filter = addSpecificationFilters(filter, req.query);
 
+    includes = [
+      ProductImage,
+      {
+        model: Shop,
+        required: true,
+      },
+      {
+        model: Category,
+        as: "category",
+        include: [
+          {
+            model: CategorySettings,
+            as: "settings",
+          },
+        ],
+      },
+      ProductStat,
+      ProductReview,
+    ];
+    if (req.user) {
+      includes.push({
+        model: Favorite,
+        where: { UserId: req.user.id },
+        required: false,
+      });
+    }
+
     const response = await Product.findAndCountAll({
       limit: req.limit,
       offset: req.offset,
@@ -530,6 +569,16 @@ const getProductSearch = async (req, res) => {
           model: Shop,
           required: true,
         },
+        {
+          model: Category,
+          as: "category",
+          include: [
+            {
+              model: CategorySettings,
+              as: "settings",
+            },
+          ],
+        },
         // ProductStat,
         ProductReview,
       ],
@@ -561,6 +610,16 @@ const getProductsForYou = async (req, res) => {
       {
         model: Shop,
         required: true,
+      },
+      {
+        model: Category,
+        as: "category",
+        include: [
+          {
+            model: CategorySettings,
+            as: "settings",
+          },
+        ],
       },
       ProductStat,
       ProductReview,
@@ -616,6 +675,16 @@ const getShopProducts = async (req, res) => {
       {
         model: Shop,
       },
+      {
+        model: Category,
+        as: "category",
+        include: [
+          {
+            model: CategorySettings,
+            as: "settings",
+          },
+        ],
+      },
       ProductStat,
       ProductReview,
     ];
@@ -651,16 +720,26 @@ const getShopProducts = async (req, res) => {
       col: "id",
     });
 
+    // Filter out products where category settings have showProductONInventory = false
+    const filteredRows = response.rows.filter((product) => {
+      const showOnInventory =
+        product.category?.settings?.showProductONInventory;
+      // If setting is undefined or true, show the product. Only hide if explicitly false
+      return showOnInventory !== false;
+    });
+
     childLogger.info("Shop products fetched successfully", {
       requestId,
       shopId: id,
-      count: response.count,
+      totalCount: response.count,
+      filteredCount: filteredRows.length,
       page: req.page,
     });
+
     successResponse(res, {
-      count: response.count,
+      count: filteredRows.length,
       page: req.page,
-      ...response,
+      rows: filteredRows,
     });
   } catch (error) {
     childLogger.error("Failed to fetch shop products", {
@@ -697,6 +776,16 @@ const getRelatedProducts = async (req, res) => {
       {
         model: Shop,
         required: true,
+      },
+      {
+        model: Category,
+        as: "category",
+        include: [
+          {
+            model: CategorySettings,
+            as: "settings",
+          },
+        ],
       },
       ProductStat,
       ProductReview,
@@ -769,6 +858,16 @@ const getProduct = async (req, res) => {
     const { id } = req.params;
     let includes = [
       ProductImage,
+      {
+        model: Category,
+        as: "category",
+        include: [
+          {
+            model: CategorySettings,
+            as: "settings",
+          },
+        ],
+      },
       ProductStat,
       {
         model: ProductReview,
@@ -1076,7 +1175,20 @@ const getPopularProducts = async (req, res) => {
           ],
         ],
       },
-      include: [ProductImage, Shop],
+      include: [
+        ProductImage,
+        Shop,
+        {
+          model: Category,
+          as: "category",
+          include: [
+            {
+              model: CategorySettings,
+              as: "settings",
+            },
+          ],
+        },
+      ],
     });
 
     childLogger.info("Popular products retrieved successfully", {
