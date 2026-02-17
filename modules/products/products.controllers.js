@@ -669,7 +669,7 @@ const getShopProducts = async (req, res) => {
   const requestId = uuidv4();
   try {
     const { id } = req.params;
-    const { category } = req.query;
+    const { category, forInventory } = req.query;
     let includes = [
       ProductImage,
       {
@@ -720,26 +720,40 @@ const getShopProducts = async (req, res) => {
       col: "id",
     });
 
-    // Filter out products where category settings have showProductONInventory = false
-    const filteredRows = response.rows.filter((product) => {
-      const showOnInventory =
-        product.category?.settings?.showProductONInventory;
-      // If setting is undefined or true, show the product. Only hide if explicitly false
-      return showOnInventory !== false;
-    });
+    // Only filter by showProductONInventory when forInventory flag is true
+    let finalRows = response.rows;
+    let finalCount = response.count;
 
-    childLogger.info("Shop products fetched successfully", {
-      requestId,
-      shopId: id,
-      totalCount: response.count,
-      filteredCount: filteredRows.length,
-      page: req.page,
-    });
+    if (forInventory === "true" || forInventory === true) {
+      // Filter out products where category settings have showProductONInventory = false
+      finalRows = response.rows.filter((product) => {
+        const showOnInventory =
+          product.category?.settings?.showProductONInventory;
+        // If setting is undefined or true, show the product. Only hide if explicitly false
+        return showOnInventory !== false;
+      });
+      finalCount = finalRows.length;
+
+      childLogger.info("Shop products fetched for inventory", {
+        requestId,
+        shopId: id,
+        totalCount: response.count,
+        filteredCount: finalRows.length,
+        page: req.page,
+      });
+    } else {
+      childLogger.info("Shop products fetched successfully", {
+        requestId,
+        shopId: id,
+        count: response.count,
+        page: req.page,
+      });
+    }
 
     successResponse(res, {
-      count: filteredRows.length,
+      count: finalCount,
       page: req.page,
-      rows: filteredRows,
+      rows: finalRows,
     });
   } catch (error) {
     childLogger.error("Failed to fetch shop products", {
