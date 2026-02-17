@@ -56,8 +56,8 @@ const getCategories = async (req, res) => {
     }
 
     const response = await Category.findAndCountAll({
-      limit: req.limit,
-      offset: req.offset,
+      limit: 50,
+      offset: 0,
       where: options,
       include: [
         {
