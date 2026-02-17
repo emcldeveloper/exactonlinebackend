@@ -43,12 +43,21 @@ const getCategorySettings = async (req, res) => {
 const createOrUpdateCategorySettings = async (req, res) => {
   try {
     const { categoryId } = req.params;
+    
+    // Log the incoming request body to track what's being received
+    console.log("====================================");
+    console.log("Category Settings Update Request:");
+    console.log("Category ID:", categoryId);
+    console.log("Request Body:", JSON.stringify(req.body, null, 2));
+    console.log("====================================");
+    
     const {
       categoryProductLabel,
       showProductLinks,
       showPriceIncludesDelivery,
       showHideProductOption,
       showIsNegotiable,
+      showAddToCartButton,
       priceTimeLimit,
     } = req.body;
 
@@ -63,27 +72,29 @@ const createOrUpdateCategorySettings = async (req, res) => {
       where: { categoryId },
     });
 
+    const settingsData = {
+      categoryProductLabel,
+      showProductLinks,
+      showPriceIncludesDelivery,
+      showHideProductOption,
+      showIsNegotiable,
+      showAddToCartButton,
+      priceTimeLimit,
+    };
+
+    console.log("Settings data to save:", JSON.stringify(settingsData, null, 2));
+
     if (settings) {
       // Update existing settings
-      await settings.update({
-        categoryProductLabel,
-        showProductLinks,
-        showPriceIncludesDelivery,
-        showHideProductOption,
-        showIsNegotiable,
-        priceTimeLimit,
-      });
+      await settings.update(settingsData);
+      console.log("Settings updated successfully");
     } else {
       // Create new settings
       settings = await CategorySettings.create({
         categoryId,
-        categoryProductLabel,
-        showProductLinks,
-        showPriceIncludesDelivery,
-        showHideProductOption,
-        showIsNegotiable,
-        priceTimeLimit,
+        ...settingsData,
       });
+      console.log("Settings created successfully");
     }
 
     const response = await CategorySettings.findOne({
