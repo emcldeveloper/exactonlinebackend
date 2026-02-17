@@ -58,6 +58,7 @@ const createOrUpdateCategorySettings = async (req, res) => {
       showHideProductOption,
       showIsNegotiable,
       showAddToCartButton,
+      showProductONInventory,
       priceTimeLimit,
     } = req.body;
 
@@ -79,6 +80,7 @@ const createOrUpdateCategorySettings = async (req, res) => {
       showHideProductOption,
       showIsNegotiable,
       showAddToCartButton,
+      showProductONInventory,
       priceTimeLimit,
     };
 

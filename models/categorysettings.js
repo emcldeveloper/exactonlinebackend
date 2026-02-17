@@ -67,6 +67,11 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: true,
         comment: "Show add to cart button for products in this category",
       },
+      showProductONInventory: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+        comment: "Show product on inventory",
+      },
       priceTimeLimit: {
         type: DataTypes.ENUM("no_limit", "one_month", "six_months", "one_year"),
         defaultValue: "no_limit",
