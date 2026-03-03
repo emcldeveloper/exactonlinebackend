@@ -1,7 +1,8 @@
 const { AbuseReport, User, Shop, Product, Service } = require("../../models");
 const { successResponse, errorResponse } = require("../../utils/responses");
 const { v4: uuidv4 } = require("uuid");
-const { childLogger } = require("../../utils/logger");
+const logger = require("../../utils/logger");
+const childLogger = logger.child({ module: "Abuse Reports" });
 
 /**
  * @swagger
