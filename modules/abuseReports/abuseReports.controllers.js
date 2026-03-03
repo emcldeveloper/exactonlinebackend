@@ -218,6 +218,7 @@ const getAbuseReports = async (req, res) => {
       rows: reports.rows,
     });
   } catch (error) {
+    console.error("Error fetching abuse reports:", error);
     childLogger.error("Failed to fetch abuse reports", {
       requestId,
       error: error.message,
@@ -283,6 +284,7 @@ const getAbuseReportById = async (req, res) => {
 
     successResponse(res, report);
   } catch (error) {
+    console.error("Error fetching abuse report by ID:", error);
     childLogger.error("Failed to fetch abuse report", {
       requestId,
       error: error.message,
@@ -528,6 +530,7 @@ const getAbuseReportStats = async (req, res) => {
 
     successResponse(res, stats);
   } catch (error) {
+    console.error("Error fetching abuse report stats:", error);
     childLogger.error("Failed to fetch abuse report stats", {
       requestId,
       error: error.message,

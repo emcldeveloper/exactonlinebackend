@@ -7,11 +7,17 @@ const errorResponse = (res, error) => {
   console.log(error);
 };
 
-const successResponse = (res, response) => {
-  res.status(200).json({
+const successResponse = (res, response, message = null, statusCode = 200) => {
+  const responseData = {
     status: true,
     body: response,
-  });
+  };
+
+  if (message) {
+    responseData.message = message;
+  }
+
+  res.status(statusCode).json(responseData);
 };
 
 module.exports = { errorResponse, successResponse };
