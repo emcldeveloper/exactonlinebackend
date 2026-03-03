@@ -92,7 +92,7 @@ const createAbuseReport = async (req, res) => {
           break;
         case "user":
           const user = await User.findByPk(reportedEntityId);
-          reportedEntityName = user?.name || user?.fullName || null;
+          reportedEntityName = user?.name || null;
           break;
       }
     } catch (error) {
@@ -111,7 +111,7 @@ const createAbuseReport = async (req, res) => {
       reason,
       description,
       reporterId: userId,
-      reporterName: reporter.name || reporter.fullName,
+      reporterName: reporter.name,
       reporterEmail: reporter.email,
       status: "pending",
     });
@@ -197,13 +197,13 @@ const getAbuseReports = async (req, res) => {
         {
           model: User,
           as: "reporter",
-          attributes: ["id", "name", "fullName", "email"],
+          attributes: ["id", "name", "email"],
           required: false,
         },
         {
           model: User,
           as: "reviewer",
-          attributes: ["id", "name", "fullName"],
+          attributes: ["id", "name"],
           required: false,
         },
       ],
@@ -272,12 +272,12 @@ const getAbuseReportById = async (req, res) => {
         {
           model: User,
           as: "reporter",
-          attributes: ["id", "name", "fullName", "email", "phoneNumber"],
+          attributes: ["id", "name", "email", "phone"],
         },
         {
           model: User,
           as: "reviewer",
-          attributes: ["id", "name", "fullName"],
+          attributes: ["id", "name"],
         },
       ],
     });
