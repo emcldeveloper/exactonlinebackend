@@ -198,13 +198,18 @@ const getAbuseReports = async (req, res) => {
           model: User,
           as: "reporter",
           attributes: ["id", "name", "fullName", "email"],
+          required: false,
         },
         {
           model: User,
           as: "reviewer",
           attributes: ["id", "name", "fullName"],
+          required: false,
         },
       ],
+    }).catch((err) => {
+      console.error("Sequelize error:", err);
+      throw err;
     });
 
     childLogger.info("Abuse reports fetched successfully", {
@@ -219,6 +224,8 @@ const getAbuseReports = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching abuse reports:", error);
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
     childLogger.error("Failed to fetch abuse reports", {
       requestId,
       error: error.message,

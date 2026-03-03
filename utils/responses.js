@@ -1,8 +1,17 @@
 const errorResponse = (res, error) => {
+  const errorMessage = error.message || "Internal server error";
+  const errorDetails = {
+    message: errorMessage,
+    ...(process.env.NODE_ENV === "development" && {
+      stack: error.stack,
+      name: error.name,
+    }),
+  };
+
   res.status(500).json({
     status: false,
     message: "Internal server error",
-    error: error,
+    error: errorDetails,
   });
   console.log(error);
 };
