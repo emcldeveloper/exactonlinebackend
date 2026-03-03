@@ -1,5 +1,5 @@
 const { Op, Sequelize } = require("sequelize");
-const { User, Shop } = require("../../models");
+const { User, Shop, ShopUser } = require("../../models");
 const { generateJwtTokens } = require("../../utils/generateJwtTokens");
 const { errorResponse, successResponse } = require("../../utils/responses");
 const { randomNumber } = require("../../utils/random_number");
@@ -296,17 +296,41 @@ const verifyCode = async (req, res) => {
       if (user.passcode == passcode) {
         const token = generateJwtTokens(user);
 
-        // Fetch user's shops
-        const shops = await Shop.findAll({
+        // Fetch shops owned by the user
+        const ownedShops = await Shop.findAll({
           where: { UserId: user.id },
           limit: 50,
         });
+
+        // Fetch shops where user is invited/added as staff
+        const shopUserRecords = await ShopUser.findAll({
+          where: { UserId: user.id },
+          include: [
+            {
+              model: Shop,
+              required: true,
+            },
+          ],
+          limit: 50,
+        });
+
+        // Extract shops from ShopUser records
+        const invitedShops = shopUserRecords.map((record) => record.Shop);
+
+        // Combine owned and invited shops, removing duplicates
+        const shopMap = new Map();
+        [...ownedShops, ...invitedShops].forEach((shop) => {
+          if (shop && shop.id) {
+            shopMap.set(shop.id, shop);
+          }
+        });
+        const allShops = Array.from(shopMap.values());
 
         // Include shops in the response
         const response = {
           ...token,
           user: user.dataValues,
-          shops: shops || [],
+          shops: allShops || [],
         };
 
         console.log("token", response);
