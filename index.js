@@ -44,6 +44,7 @@ const InventoryRoutes = require("./modules/inventory/inventory.routes");
 const POSRoutes = require("./modules/pos/pos.routes");
 const ShopUsersRoutes = require("./modules/shopUsers/shopUsers.routes");
 const UploadRoutes = require("./modules/upload/upload.routes");
+const AbuseReportsRoutes = require("./modules/abuseReports/abuseReports.routes");
 const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("./swagger-output.json");
 const {
@@ -79,6 +80,7 @@ const {
   servicesTag,
   serviceImagesTag,
   subCategoriesTag,
+  abuseReportsTag,
 } = require("./utils/apiSwaggerTags");
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -136,6 +138,7 @@ app.use("/ordered-products", orderedProductsTag, OrderedProductsRoutes);
 app.use("/inventory", InventoryRoutes);
 app.use("/pos", POSRoutes);
 app.use("/upload", UploadRoutes);
+app.use("/abuse-reports", abuseReportsTag, AbuseReportsRoutes);
 app.use("/", ShopUsersRoutes); // Shop users routes (includes /shops/:shopId/users and /user-invitations)
 app.use(
   "/shops-subscriptions",

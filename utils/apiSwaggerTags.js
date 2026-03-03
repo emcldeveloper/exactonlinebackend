@@ -146,6 +146,11 @@ const categoryProductSpecificationsTag = (req, res, next) => {
   next();
 };
 
+const abuseReportsTag = (req, res, next) => {
+  // #swagger.tags = ['Abuse Reports']
+  next();
+};
+
 module.exports = {
   usersTag,
   adDimensionsTag,
@@ -179,4 +184,5 @@ module.exports = {
   serviceImagesTag,
   servicesTag,
   subCategoriesTag,
+  abuseReportsTag,
 };

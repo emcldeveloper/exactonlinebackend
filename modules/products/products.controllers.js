@@ -342,13 +342,14 @@ const addProduct = async (req, res) => {
 const getProducts = async (req, res) => {
   const requestId = uuidv4();
   try {
-    const { category, region, district, ward } = req.query;
+    const { category, subcategory, region, district, ward } = req.query;
     childLogger.http("Received get products request", {
       requestId,
       method: req.method,
       url: req.url,
       query: {
         category,
+        subcategory,
         region,
         district,
         ward,
@@ -365,10 +366,22 @@ const getProducts = async (req, res) => {
       },
     };
 
-    // Support filtering by CategoryId or SubcategoryId
+    // Filter by CategoryId when category is specified
     if (category && category.toLowerCase() !== "all") {
-      filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
+      filter.CategoryId = category;
+      console.log("🔍 Backend: Filtering by CategoryId:", category);
     }
+
+    // Filter by SubcategoryId when subcategory is specified
+    if (subcategory && subcategory.toLowerCase() !== "all") {
+      filter.SubcategoryId = subcategory;
+      console.log("🔍 Backend: Filtering by SubcategoryId:", subcategory);
+    }
+
+    console.log(
+      "🔍 Backend: Final filter object:",
+      JSON.stringify(filter, null, 2),
+    );
 
     // Add location filters
     if (region && region.toLowerCase() !== "all") {
@@ -426,6 +439,18 @@ const getProducts = async (req, res) => {
       col: "id", // Count distinct products, not joined rows
     });
 
+    console.log("📦 Backend: Query returned", response.rows.length, "products");
+    if (response.rows.length > 0) {
+      console.log(
+        "📦 Backend: First 3 products:",
+        response.rows.slice(0, 3).map((p) => ({
+          name: p.name,
+          CategoryId: p.CategoryId,
+          SubcategoryId: p.SubcategoryId,
+        })),
+      );
+    }
+
     childLogger.info("Products fetched successfully", {
       requestId,
       count: response.count,
@@ -445,7 +470,7 @@ const getProducts = async (req, res) => {
 const getNewArrivalProducts = async (req, res) => {
   const requestId = uuidv4();
   try {
-    const { category, region, district, ward } = req.query;
+    const { category, subcategory, region, district, ward } = req.query;
     let includes = [
       ProductImage,
       {
@@ -469,9 +494,15 @@ const getNewArrivalProducts = async (req, res) => {
         [Op.like]: `%${req.keyword}%`,
       },
     };
-    // Support filtering by CategoryId or SubcategoryId
+
+    // Filter by CategoryId when category is specified
     if (category && category.toLowerCase() !== "all") {
-      filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
+      filter.CategoryId = category;
+    }
+
+    // Filter by SubcategoryId when subcategory is specified
+    if (subcategory && subcategory.toLowerCase() !== "all") {
+      filter.SubcategoryId = subcategory;
     }
 
     // Add location filters
@@ -545,7 +576,7 @@ const getProductSearch = async (req, res) => {
   const requestId = uuidv4();
   try {
     const { keyword } = req.params;
-    const { category } = req.query;
+    const { category, subcategory } = req.query;
 
     let filter = {
       isHidden: false,
@@ -553,9 +584,15 @@ const getProductSearch = async (req, res) => {
         [Op.iLike]: `%${keyword}%`,
       },
     };
-    // Support filtering by CategoryId or SubcategoryId
+
+    // Filter by CategoryId when category is specified
     if (category && category.toLowerCase() !== "all") {
-      filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
+      filter.CategoryId = category;
+    }
+
+    // Filter by SubcategoryId when subcategory is specified
+    if (subcategory && subcategory.toLowerCase() !== "all") {
+      filter.SubcategoryId = subcategory;
     }
 
     // Add specification filters
@@ -604,7 +641,7 @@ const getProductSearch = async (req, res) => {
 const getProductsForYou = async (req, res) => {
   const requestId = uuidv4();
   try {
-    const { category } = req.query;
+    const { category, subcategory } = req.query;
     let includes = [
       ProductImage,
       {
@@ -638,9 +675,15 @@ const getProductsForYou = async (req, res) => {
         [Op.like]: `%${req.keyword}%`,
       },
     };
-    // Support filtering by CategoryId or SubcategoryId
+
+    // Filter by CategoryId when category is specified
     if (category && category.toLowerCase() !== "all") {
-      filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
+      filter.CategoryId = category;
+    }
+
+    // Filter by SubcategoryId when subcategory is specified
+    if (subcategory && subcategory.toLowerCase() !== "all") {
+      filter.SubcategoryId = subcategory;
     }
 
     // Add specification filters
@@ -669,7 +712,7 @@ const getShopProducts = async (req, res) => {
   const requestId = uuidv4();
   try {
     const { id } = req.params;
-    const { category, forInventory } = req.query;
+    const { category, subcategory, forInventory } = req.query;
     let includes = [
       ProductImage,
       {
@@ -702,9 +745,15 @@ const getShopProducts = async (req, res) => {
       },
       ShopId: id,
     };
-    // Support filtering by CategoryId or SubcategoryId
+
+    // Filter by CategoryId when category is specified
     if (category && category.toLowerCase() !== "all") {
-      filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
+      filter.CategoryId = category;
+    }
+
+    // Filter by SubcategoryId when subcategory is specified
+    if (subcategory && subcategory.toLowerCase() !== "all") {
+      filter.SubcategoryId = subcategory;
     }
 
     // Add specification filters
@@ -773,7 +822,7 @@ const getRelatedProducts = async (req, res) => {
   const requestId = uuidv4();
   try {
     const { id } = req.params;
-    const { category } = req.query;
+    const { category, subcategory } = req.query;
 
     const product = await findProductByID(id);
 
@@ -822,10 +871,15 @@ const getRelatedProducts = async (req, res) => {
 
     // If category filter is provided, use it; otherwise use the product's CategoryId for related products
     if (category && category.toLowerCase() !== "all") {
-      filter[Op.or] = [{ CategoryId: category }, { SubcategoryId: category }];
+      filter.CategoryId = category;
     } else {
       // Default behavior: find products with same CategoryId
       filter.CategoryId = product.CategoryId;
+    }
+
+    // If subcategory filter is provided, use it
+    if (subcategory && subcategory.toLowerCase() !== "all") {
+      filter.SubcategoryId = subcategory;
     }
 
     // Add specification filters
