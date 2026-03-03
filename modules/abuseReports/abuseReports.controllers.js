@@ -45,6 +45,7 @@ const createAbuseReport = async (req, res) => {
   const requestId = uuidv4();
   try {
     const { reportType, reportedEntityId, reason, description } = req.body;
+    console.log("Create abuse report request body:", req.body);
     const userId = req.user.id;
 
     childLogger.http("Received create abuse report request", {
@@ -94,6 +95,7 @@ const createAbuseReport = async (req, res) => {
           break;
       }
     } catch (error) {
+      console.error("Error fetching reported entity name:", error);
       childLogger.warn("Failed to fetch reported entity name", {
         requestId,
         error: error.message,
