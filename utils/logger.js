@@ -1,38 +1,22 @@
-require("dotenv").config()
+require("dotenv").config();
 const winston = require("winston");
-const { Logtail } = require("@logtail/node");
-const { LogtailTransport } = require("@logtail/winston");
 
-// Create a Logtail client
-const logtail = new Logtail(process.env.LOGTAIL_TOKEN,{
-  endpoint:`https://${process.env.LOGTAIL_URL}`
-});
+const consoleLogFormat = winston.format.printf(
+  ({ timestamp, level, message, stack, ...meta }) => {
+    const metadata = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : "";
+    const errorStack = stack ? `\n${stack}` : "";
+    return `${timestamp} ${level}: ${message}${metadata}${errorStack}`;
+  },
+);
+
 const logger = winston.createLogger({
-  level: "info",
+  level: process.env.LOG_LEVEL || "info",
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.json(),
-    winston.format.prettyPrint()
+    winston.format.errors({ stack: true }),
+    consoleLogFormat,
   ),
-  transports: [
-    new LogtailTransport(logtail),
-    new winston.transports.File({
-      filename: "logs/info.log",
-      level: "info",
-    }),
-    new winston.transports.File({
-      filename: "logs/warning.log",
-      level: "warning",
-    }),
-    new winston.transports.File({
-      filename: "logs/exception.log",
-      level: "error",
-    }),
-    new winston.transports.File({
-      filename: "logs/critical.log",
-      level: "crit",
-    }),
-  ],
+  transports: [new winston.transports.Console()],
 });
 
 module.exports = logger;
