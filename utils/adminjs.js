@@ -59,9 +59,11 @@ const initializeAdminPanel = async (app) => {
       secret: process.env.ADMINJS_SESSION_SECRET,
       resave: false,
       saveUninitialized: false,
+      proxy: true,
       cookie: {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
       },
       name: "adminjs",
     },

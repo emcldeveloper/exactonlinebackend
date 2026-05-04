@@ -95,6 +95,10 @@ const { scrapeResults } = require("./utils/scrapper");
 const logger = require("./utils/logger");
 const { initializeAdminPanel } = require("./utils/adminjs");
 const { sendFCMNotification } = require("./utils/send_notification");
+
+// Needed when running behind Nginx/Cloudflare so secure cookies work correctly.
+app.set("trust proxy", 1);
+
 app.use("/files", express.static("files"));
 app.use("/extracted", express.static("extracted"));
 app.use(express.json());
