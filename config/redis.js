@@ -3,6 +3,15 @@ const logger = require("../utils/logger");
 
 const childLogger = logger.child({ module: "Redis Client" });
 
+const normalizeRedisError = (error) => ({
+  name: error?.name,
+  message: error?.message || String(error),
+  code: error?.code,
+  errno: error?.errno,
+  address: error?.address,
+  port: error?.port,
+});
+
 class RedisClient {
   constructor() {
     this.client = null;
@@ -13,13 +22,27 @@ class RedisClient {
     try {
       // Create Redis client with configuration
       this.client = redis.createClient({
-        host: process.env.REDIS_HOST || "localhost",
-        port: process.env.REDIS_PORT || 6379,
+        socket: {
+          host: process.env.REDIS_HOST || "localhost",
+          port: Number(process.env.REDIS_PORT || 6379),
+          reconnectStrategy: (retries) => {
+            if (retries >= 3) {
+              childLogger.error("Redis reconnect attempts exhausted", {
+                retries,
+              });
+              return false;
+            }
+
+            const delay = Math.min((retries + 1) * 500, 2000);
+            childLogger.warn("Retrying Redis connection", {
+              retries: retries + 1,
+              delay,
+            });
+            return delay;
+          },
+        },
         password: process.env.REDIS_PASSWORD || undefined,
-        db: process.env.REDIS_DB || 0,
-        retryDelayOnFailover: 100,
-        maxRetriesPerRequest: 3,
-        lazyConnect: true,
+        database: Number(process.env.REDIS_DB || 0),
       });
 
       // Handle Redis client events
@@ -29,7 +52,7 @@ class RedisClient {
       });
 
       this.client.on("error", (err) => {
-        childLogger.error("Redis client error", { error: err.message });
+        childLogger.error("Redis client error", normalizeRedisError(err));
         this.isConnected = false;
       });
 
@@ -44,7 +67,10 @@ class RedisClient {
       childLogger.info("Redis connection established successfully");
       return this.client;
     } catch (error) {
-      childLogger.error("Failed to connect to Redis", { error: error.message });
+      childLogger.error(
+        "Failed to connect to Redis",
+        normalizeRedisError(error),
+      );
       this.isConnected = false;
       // Don't throw error to allow app to continue without Redis
       return null;
@@ -66,7 +92,10 @@ class RedisClient {
       childLogger.debug("Cache miss", { key });
       return null;
     } catch (error) {
-      childLogger.error("Redis get error", { key, error: error.message });
+      childLogger.error("Redis get error", {
+        key,
+        ...normalizeRedisError(error),
+      });
       return null;
     }
   }
@@ -83,7 +112,11 @@ class RedisClient {
       childLogger.debug("Cache set", { key, ttl });
       return true;
     } catch (error) {
-      childLogger.error("Redis set error", { key, error: error.message });
+      childLogger.error("Redis set error", {
+        key,
+        ttl,
+        ...normalizeRedisError(error),
+      });
       return false;
     }
   }
@@ -99,7 +132,10 @@ class RedisClient {
       childLogger.debug("Cache deleted", { key });
       return true;
     } catch (error) {
-      childLogger.error("Redis delete error", { key, error: error.message });
+      childLogger.error("Redis delete error", {
+        key,
+        ...normalizeRedisError(error),
+      });
       return false;
     }
   }
@@ -125,7 +161,7 @@ class RedisClient {
     } catch (error) {
       childLogger.error("Redis pattern invalidation error", {
         pattern,
-        error: error.message,
+        ...normalizeRedisError(error),
       });
       return false;
     }
@@ -137,9 +173,10 @@ class RedisClient {
         await this.client.quit();
         childLogger.info("Redis client disconnected");
       } catch (error) {
-        childLogger.error("Error disconnecting Redis client", {
-          error: error.message,
-        });
+        childLogger.error(
+          "Error disconnecting Redis client",
+          normalizeRedisError(error),
+        );
       }
     }
   }

@@ -91,6 +91,7 @@ const io = new Server(server, {
 const { errorResponse } = require("./utils/responses");
 const { scrapeResults } = require("./utils/scrapper");
 const logger = require("./utils/logger");
+const { initializeAdminPanel } = require("./utils/adminjs");
 const { sendFCMNotification } = require("./utils/send_notification");
 app.use("/files", express.static("files"));
 app.use("/extracted", express.static("extracted"));
@@ -154,6 +155,14 @@ app.use(
   CategoryProductSpecificationsRoutes,
 );
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+initializeAdminPanel(app).catch((error) => {
+  logger.error("Failed to initialize AdminJS", {
+    error: error.message,
+    stack: error.stack,
+  });
+});
+
 app.get("/", (req, res) => {
   try {
     res.status(200).send("Server is running fine");
